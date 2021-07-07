@@ -11,7 +11,12 @@ pub use self::node::*;
 pub use self::qos::*;
 
 use self::rcl_bindings::*;
+use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
+
+use std::future::Future;
+use std::pin::Pin;
+use std::task::Poll;
 
 pub trait Handle<T> {
     type DerefT: Deref<Target = T>;
@@ -34,7 +39,6 @@ pub fn spin(node: &Node) -> RclResult {
 
     Ok(())
 }
-
 
 /// Main function for waiting.
 ///
@@ -74,7 +78,6 @@ pub fn spin(node: &Node) -> RclResult {
 ///
 ///
 pub fn spin_once(node: &Node, timeout: i64) -> RclResult {
-
     // get an rcl_wait_set_t - All NULLs
     let mut wait_set_handle = unsafe { rcl_get_zero_initialized_wait_set() };
 
@@ -138,4 +141,27 @@ pub fn spin_once(node: &Node, timeout: i64) -> RclResult {
     }
 
     Ok(())
+}
+
+#[derive(Clone)]
+pub struct RclFuture<'a, T> {
+    node: &'a Node,
+    phantom: PhantomData<T>,
+}
+
+impl<'a, T> RclFuture<'a, T> {
+    fn new(node: &'a Node) -> Self {
+        RclFuture {
+            node: node,
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<'a, T> Future for RclFuture<'a, T> {
+    type Output = T;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
+        Poll::Pending
+    }
 }
