@@ -1,0 +1,15 @@
+[package]
+name = "my_cool_rust_pkg"
+version = "0.2.0"
+authors = ["Nikolai Morin <nnmmgit@gmail.com>"]
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[build-dependencies]
+cbindgen = "0.23.0"
+
+[package.metadata.ros]
+install_to_share = ["cmake"]
+install_to_include = ["include/my_cool_rust_pkg.hpp"]
