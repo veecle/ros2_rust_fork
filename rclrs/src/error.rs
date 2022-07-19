@@ -1,10 +1,11 @@
+use crate::dynamic_message::DynamicMessageError;
 use crate::rcl_bindings::*;
 use std::error::Error;
 use std::ffi::{CStr, NulError};
 use std::fmt::{self, Display};
 
 /// The main error type.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub enum RclrsError {
     /// An error originating in the `rcl` layer.
     RclError {
@@ -29,6 +30,11 @@ pub enum RclrsError {
     },
     /// It was attempted to add a waitable to a wait set twice.
     AlreadyAddedToWaitSet,
+    /// An error while creating dynamic message.
+    DynamicMessageError {
+        /// The error containing more detailed information.
+        err: DynamicMessageError,
+    },
 }
 
 impl Display for RclrsError {
@@ -45,7 +51,16 @@ impl Display for RclrsError {
                     "Could not add entity to wait set because it was already added to a wait set"
                 )
             }
+            RclrsError::DynamicMessageError { .. } => {
+                write!(f, "Could not create dynamic message")
+            }
         }
+    }
+}
+
+impl From<DynamicMessageError> for RclrsError {
+    fn from(err: DynamicMessageError) -> Self {
+        Self::DynamicMessageError { err }
     }
 }
 
@@ -77,6 +92,7 @@ impl Error for RclrsError {
             RclrsError::UnknownRclError { msg, .. } => msg.as_ref().map(|e| e as &dyn Error),
             RclrsError::StringContainsNul { err, .. } => Some(err).map(|e| e as &dyn Error),
             RclrsError::AlreadyAddedToWaitSet => None,
+            RclrsError::DynamicMessageError { err } => Some(err).map(|e| e as &dyn Error),
         }
     }
 }

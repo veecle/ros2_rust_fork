@@ -3,6 +3,8 @@ mod graph;
 pub use self::builder::*;
 pub use self::graph::*;
 
+#[cfg(feature = "dyn_msg")]
+use crate::dynamic_message::{DynamicMessage, DynamicSubscription};
 use crate::rcl_bindings::*;
 use crate::{
     Client, ClientBase, Context, ParameterOverrideMap, Publisher, QoSProfile, RclrsError, Service,
@@ -238,6 +240,29 @@ impl Node {
         F: FnMut(T) + 'static + Send,
     {
         let subscription = Arc::new(Subscription::<T>::new(self, topic, qos, callback)?);
+        self.subscriptions
+            .push(Arc::downgrade(&subscription) as Weak<dyn SubscriptionBase>);
+        Ok(subscription)
+    }
+
+    /// Creates a [`DynamicSubscription`][1].
+    ///
+    /// [1]: crate::dynamic_message::DynamicSubscription
+    // TODO: make subscription's lifetime depend on node's lifetime
+    #[cfg(feature = "dyn_msg")]
+    pub fn create_dynamic_subscription<F>(
+        &mut self,
+        topic: &str,
+        topic_type: &str,
+        qos: QoSProfile,
+        callback: F,
+    ) -> Result<Arc<DynamicSubscription>, RclrsError>
+    where
+        F: FnMut(DynamicMessage) + 'static + Send,
+    {
+        let subscription = Arc::new(DynamicSubscription::new(
+            self, topic, topic_type, qos, callback,
+        )?);
         self.subscriptions
             .push(Arc::downgrade(&subscription) as Weak<dyn SubscriptionBase>);
         Ok(subscription)

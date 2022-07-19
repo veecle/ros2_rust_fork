@@ -6,96 +6,61 @@ use crate::{rcl_bindings::*, RclrsError};
 use std::boxed::Box;
 use std::ffi::CStr;
 use std::ffi::CString;
-use std::marker::PhantomData;
 use std::sync::atomic::AtomicBool;
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex};
 
-use rosidl_runtime_rs::{Message, RmwMessage};
+use super::{
+    get_type_support_library, DynamicMessage, DynamicMessageError, DynamicMessageMetadata,
+    MessageStructure,
+};
+use crate::{SubscriptionBase, SubscriptionHandle};
 
-mod readonly_loaned_message;
-pub use readonly_loaned_message::*;
-
-// SAFETY: The functions accessing this type, including drop(), shouldn't care about the thread
-// they are running in. Therefore, this type can be safely sent to another thread.
-unsafe impl Send for rcl_subscription_t {}
-
-/// Internal struct used by subscriptions.
-pub struct SubscriptionHandle {
-    pub(crate) rcl_subscription_mtx: Mutex<rcl_subscription_t>,
-    pub(crate) rcl_node_mtx: Arc<Mutex<rcl_node_t>>,
-    pub(crate) in_use_by_wait_set: Arc<AtomicBool>,
-}
-
-impl SubscriptionHandle {
-    pub(crate) fn lock(&self) -> MutexGuard<rcl_subscription_t> {
-        self.rcl_subscription_mtx.lock().unwrap()
-    }
-}
-
-impl Drop for SubscriptionHandle {
-    fn drop(&mut self) {
-        let rcl_subscription = self.rcl_subscription_mtx.get_mut().unwrap();
-        let rcl_node = &mut *self.rcl_node_mtx.lock().unwrap();
-        // SAFETY: No preconditions for this function (besides the arguments being valid).
-        unsafe {
-            rcl_subscription_fini(rcl_subscription, rcl_node);
-        }
-    }
-}
-
-/// Trait to be implemented by concrete [`Subscription`]s.
-pub trait SubscriptionBase: Send + Sync {
-    /// Internal function to get a reference to the `rcl` handle.
-    fn handle(&self) -> &SubscriptionHandle;
-    /// Tries to take a new message and run the callback with it.
-    fn execute(&self) -> Result<(), RclrsError>;
-}
-
-/// Struct for receiving messages of type `T`.
-///
-/// There can be multiple subscriptions for the same topic, in different nodes or the same node.
-///
-/// Receiving messages requires calling [`spin_once`][1] or [`spin`][2] on the subscription's node.
-///
-/// When a subscription is created, it may take some time to get "matched" with a corresponding
-/// publisher.
-///
-/// The only available way to instantiate subscriptions is via [`Node::create_subscription`], this
-/// is to ensure that [`Node`]s can track all the subscriptions that have been created.
-///
-/// [1]: crate::spin_once
-/// [2]: crate::spin
-pub struct Subscription<T>
-where
-    T: Message,
-{
+/// Struct for receiving messages whose type is only known at runtime.
+pub struct DynamicSubscription {
     pub(crate) handle: Arc<SubscriptionHandle>,
     /// The callback function that runs when a message was received.
-    pub callback: Mutex<Box<dyn FnMut(T) + 'static + Send>>,
-    message: PhantomData<T>,
+    pub callback: Mutex<Box<dyn FnMut(DynamicMessage) + 'static + Send>>,
+    metadata: DynamicMessageMetadata,
+    #[allow(dead_code)]
+    type_support_library: Arc<libloading::Library>,
 }
 
-impl<T> Subscription<T>
-where
-    T: Message,
-{
-    /// Creates a new subscription.
+impl DynamicSubscription {
+    /// Creates a new dynamic subscription.
     pub(crate) fn new<F>(
         node: &Node,
         topic: &str,
+        topic_type: &str,
         qos: QoSProfile,
         callback: F,
     ) -> Result<Self, RclrsError>
     // This uses pub(crate) visibility to avoid instantiating this struct outside
     // [`Node::create_subscription`], see the struct's documentation for the rationale
     where
-        T: Message,
-        F: FnMut(T) + 'static + Send,
+        F: FnMut(DynamicMessage) + 'static + Send,
     {
-        // SAFETY: Getting a zero-initialized value is always safe.
-        let mut rcl_subscription = unsafe { rcl_get_zero_initialized_subscription() };
-        let type_support =
-            <T as Message>::RmwMsg::get_type_support() as *const rosidl_message_type_support_t;
+        // This loads the introspection type support library
+        let metadata = DynamicMessageMetadata::new(topic_type)?;
+        // This loads the rosidl_typesupport_c type support library
+        let type_identifier = &metadata.message_type;
+        let type_support_library =
+            get_type_support_library(&type_identifier.package, "rosidl_typesupport_c")?;
+        let symbol_name = format!(
+            "rosidl_typesupport_c__get_message_type_support_handle__{}__msg__{}",
+            &type_identifier.package, &type_identifier.type_name
+        );
+
+        // SAFETY: We know that the symbol has this type.
+        let get_type_support_handle: libloading::Symbol<
+            unsafe extern "C" fn() -> *const rosidl_message_type_support_t,
+        > = unsafe {
+            type_support_library
+                .get(symbol_name.as_bytes())
+                .map_err(|_| DynamicMessageError::InvalidMessageType)?
+        };
+        // SAFETY: The library is kept loaded while the type support ptr is used.
+        let type_support_ptr = unsafe { get_type_support_handle() };
+
         let topic_c_string = CString::new(topic).map_err(|err| RclrsError::StringContainsNul {
             err,
             s: topic.into(),
@@ -105,6 +70,8 @@ where
         // SAFETY: No preconditions for this function.
         let mut subscription_options = unsafe { rcl_subscription_get_default_options() };
         subscription_options.qos = qos.into();
+        // SAFETY: Getting a zero-initialized value is always safe.
+        let mut rcl_subscription = unsafe { rcl_get_zero_initialized_subscription() };
         unsafe {
             // SAFETY: The rcl_subscription is zero-initialized as expected by this function.
             // The rcl_node is kept alive because it is co-owned by the subscription.
@@ -114,7 +81,7 @@ where
             rcl_subscription_init(
                 &mut rcl_subscription,
                 rcl_node,
-                type_support,
+                type_support_ptr,
                 topic_c_string.as_ptr(),
                 &subscription_options,
             )
@@ -130,7 +97,8 @@ where
         Ok(Self {
             handle,
             callback: Mutex::new(Box::new(callback)),
-            message: PhantomData,
+            metadata,
+            type_support_library,
         })
     }
 
@@ -147,6 +115,11 @@ where
                 .to_string_lossy()
                 .into_owned()
         }
+    }
+
+    /// Returns a description of the message structure.
+    pub fn structure(&self) -> &MessageStructure {
+        &self.metadata.structure
     }
 
     /// Fetches a new message.
@@ -171,8 +144,9 @@ where
     // |  rmw_take   |
     // +-------------+
     // ```
-    pub fn take(&self) -> Result<T, RclrsError> {
-        let mut rmw_message = <T as Message>::RmwMsg::default();
+    pub fn take(&self) -> Result<DynamicMessage, RclrsError> {
+        let mut dynamic_message = self.metadata.create()?;
+        let rmw_message = dynamic_message.storage.as_mut_ptr();
         let rcl_subscription = &mut *self.handle.lock();
         unsafe {
             // SAFETY: The first two pointers are valid/initialized, and do not need to be valid
@@ -180,54 +154,17 @@ where
             // The latter two pointers are explicitly allowed to be NULL.
             rcl_take(
                 rcl_subscription,
-                &mut rmw_message as *mut <T as Message>::RmwMsg as *mut _,
+                rmw_message as *mut _,
                 std::ptr::null_mut(),
                 std::ptr::null_mut(),
             )
             .ok()?
         };
-        Ok(T::from_rmw_message(rmw_message))
+        Ok(dynamic_message)
     }
 }
 
-impl<T> Subscription<T>
-where
-    T: RmwMessage,
-{
-    /// Obtains a read-only handle to a message owned by the middleware.
-    ///
-    /// When there is no new message, this will return a
-    /// [`SubscriptionTakeFailed`][1].
-    ///
-    /// This is the counterpart to [`Publisher::borrow_loaned_message()`][2]. See its documentation
-    /// for more information.
-    ///
-    /// [1]: crate::RclrsError
-    /// [2]: crate::Publisher::borrow_loaned_message
-    pub fn take_loaned_message(&self) -> Result<ReadOnlyLoanedMessage<'_, T>, RclrsError> {
-        let mut msg_ptr = std::ptr::null_mut();
-        unsafe {
-            // SAFETY: The third argument (message_info) and fourth argument (allocation) may be null.
-            // The second argument (loaned_message) contains a null ptr as expected.
-            rcl_take_loaned_message(
-                &*self.handle.lock(),
-                &mut msg_ptr,
-                std::ptr::null_mut(),
-                std::ptr::null_mut(),
-            )
-            .ok()?;
-        }
-        Ok(ReadOnlyLoanedMessage {
-            msg_ptr: msg_ptr as *const T,
-            subscription: self,
-        })
-    }
-}
-
-impl<T> SubscriptionBase for Subscription<T>
-where
-    T: Message,
-{
+impl SubscriptionBase for DynamicSubscription {
     fn handle(&self) -> &SubscriptionHandle {
         &self.handle
     }

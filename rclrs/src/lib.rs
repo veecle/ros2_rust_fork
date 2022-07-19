@@ -19,6 +19,9 @@ mod wait;
 
 mod rcl_bindings;
 
+#[cfg(feature = "dyn_msg")]
+pub mod dynamic_message;
+
 pub use arguments::*;
 pub use client::*;
 pub use context::*;

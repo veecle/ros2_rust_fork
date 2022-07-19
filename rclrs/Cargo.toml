@@ -13,12 +13,21 @@ path = "src/lib.rs"
 # Please keep the list of dependencies alphabetically sorted,
 # and also state why each dependency is needed.
 [dependencies]
+# Needed for dynamically finding type support libraries 
+ament_rs = { version = "0.2", optional = true }
+# Needed for clients
+futures = "0.3"
+# Needed for dynamic messages
+libloading = { version = "0.7", optional = true }
 # Needed for FFI
 libc = "0.2.43"
 # Needed for the Message trait, among others
 rosidl_runtime_rs = "0.2.0"
-# Needed for clients
-futures = "0.3"
+# Needed for serializing dynamic messages
+serde = { version = "1", optional = true }
+# Needed for serializing dynamic messages
+serde-value = {version = "0.7", optional = true }
+
 
 [dev-dependencies]
 # Needed for e.g. writing yaml files in tests
@@ -27,3 +36,8 @@ tempfile = "3.3.0"
 [build-dependencies]
 # Needed for FFI
 bindgen = "0.59.1"
+
+[features]
+default = ["dyn_msg"]
+dyn_msg = ["ament_rs", "libloading"]
+serde = ["dep:serde", "serde-value", "rosidl_runtime_rs/serde"]
