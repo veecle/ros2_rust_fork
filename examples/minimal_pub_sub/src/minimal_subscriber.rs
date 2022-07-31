@@ -8,12 +8,12 @@ fn main() -> Result<(), Error> {
 
     let mut num_messages: usize = 0;
 
-    let _subscription = node.create_subscription::<std_msgs::msg::String, _>(
+    let _subscription = node.create_subscription::<rclrs_example_msgs::msg::VariousTypes, _>(
         "topic",
         rclrs::QOS_PROFILE_DEFAULT,
-        move |msg: std_msgs::msg::String| {
+        move |msg: rclrs_example_msgs::msg::VariousTypes| {
             num_messages += 1;
-            println!("I heard: '{}'", msg.data);
+            println!("I heard: '{:?}'", msg);
             println!("(Got {} messages so far)", num_messages);
         },
     )?;

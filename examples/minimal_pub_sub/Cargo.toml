@@ -25,5 +25,8 @@ version = "*"
 [dependencies.std_msgs]
 version = "*"
 
+[dependencies.rclrs_example_msgs]
+version = "*"
+
 [package.metadata.ros]
 install_to_share = ["launch"]

@@ -163,7 +163,7 @@ fn demonstrate_pubsub() -> Result<(), Error> {
     println!("Sending RMW-native message.");
     direct_publisher.publish(rclrs_example_msgs::msg::rmw::VariousTypes::default())?;
     rclrs::spin_once(&node, None)?;
-
+    std::thread::sleep(std::time::Duration::from_millis(100));
     Ok(())
 }
 
