@@ -17,14 +17,16 @@
 
 use crate::error::{to_rclrs_result, RclReturnCode, RclrsError, ToResult};
 use crate::rcl_bindings::*;
-use crate::{ClientBase, Context, ServiceBase, SubscriptionBase};
+use crate::{ClientBase, Context, Node, ServiceBase, SubscriptionBase};
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use std::vec::Vec;
 
 mod exclusivity_guard;
+mod future;
 use exclusivity_guard::*;
+use future::*;
 
 /// A struct for waiting on subscriptions and other waitable entities to become ready.
 pub struct WaitSet {
@@ -99,6 +101,37 @@ impl WaitSet {
             clients: Vec::new(),
             services: Vec::new(),
         })
+    }
+
+    pub fn new_for_node(node: &Node) -> Result<Self, RclrsError> {
+        let live_subscriptions = node.live_subscriptions();
+        let live_clients = node.live_clients();
+        let live_services = node.live_services();
+        let ctx = Context {
+            rcl_context_mtx: node.rcl_context_mtx.clone(),
+        };
+        let mut wait_set = WaitSet::new(
+            live_subscriptions.len(),
+            0,
+            0,
+            live_clients.len(),
+            live_services.len(),
+            0,
+            &ctx,
+        )?;
+
+        for live_subscription in &live_subscriptions {
+            wait_set.add_subscription(live_subscription.clone())?;
+        }
+
+        for live_client in &live_clients {
+            wait_set.add_client(live_client.clone())?;
+        }
+
+        for live_service in &live_services {
+            wait_set.add_service(live_service.clone())?;
+        }
+        Ok(wait_set)
     }
 
     /// Removes all entities from the wait set.
