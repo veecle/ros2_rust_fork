@@ -9,7 +9,7 @@ use std::{
     thread::JoinHandle,
 };
 
-enum WaitSetFuture<'node> {
+pub enum WaitSetFuture<'node> {
     Fresh(&'node Node),
     Spinning {
         thread: JoinHandle<()>,
@@ -17,14 +17,20 @@ enum WaitSetFuture<'node> {
     },
 }
 
-// YOLO
+impl<'node> WaitSetFuture<'node> {
+    pub fn new(node: &'node Node) -> Self {
+        Self::Fresh(node)
+    }
+}
+
+// TODO: Check that this is safe in detail
 unsafe impl Send for WaitSet {}
 
 impl<'node> Future for WaitSetFuture<'node> {
     type Output = ReadyEntities;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        *self = match *self {
+        let next = match *self {
             WaitSetFuture::Fresh(node) => {
                 let mut wait_set = WaitSet::new_for_node(node).unwrap();
                 let (mut tx, rx) = mpsc::channel(10);
@@ -32,18 +38,21 @@ impl<'node> Future for WaitSetFuture<'node> {
                     let ready_entities = wait_set.wait(None).unwrap();
                     tx.try_send(ready_entities).unwrap();
                 });
-                WaitSetFuture::Spinning { thread, rx }
+                Some(WaitSetFuture::Spinning { thread, rx })
             }
-            this @ WaitSetFuture::Spinning {
+            WaitSetFuture::Spinning {
                 ref thread,
                 ref mut rx,
             } => {
                 if let Poll::Ready(Some(ready_entities)) = Pin::new(rx).poll_next(cx) {
                     todo!()
                 }
-                this
+                None
             }
         };
+        if let Some(val) = next {
+            *self = val;
+        }
         Poll::Pending
     }
 }
