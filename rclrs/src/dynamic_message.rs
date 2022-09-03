@@ -394,4 +394,26 @@ impl DynamicMessage {
             Err(self)
         }
     }
+
+    /// Returns a view object of this message.
+    ///
+    /// The purpose for this conversion is to allow uniform handling of this top-level message
+    /// and nested messages contained in it through a [`DynamicMessageView`].
+    pub fn view(&self) -> DynamicMessageView<'_> {
+        DynamicMessageView {
+            structure: &self.metadata.structure,
+            storage: &self.storage,
+        }
+    }
+
+    /// Returns a mutable view object of this message.
+    ///
+    /// The purpose for this conversion is to allow uniform handling of this top-level message
+    /// and nested messages contained in it through a [`DynamicMessageViewMut`].
+    pub fn view_mut(&mut self) -> DynamicMessageViewMut<'_> {
+        DynamicMessageViewMut {
+            structure: &self.metadata.structure,
+            storage: &mut self.storage,
+        }
+    }
 }

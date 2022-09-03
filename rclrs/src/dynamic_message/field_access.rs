@@ -246,37 +246,31 @@ macro_rules! define_value_types {
                     BaseType::Int32 => SimpleValue::Int32(reinterpret::<i32>(bytes)),
                     BaseType::Uint64 => SimpleValue::Uint64(reinterpret::<u64>(bytes)),
                     BaseType::Int64 => SimpleValue::Int64(reinterpret::<i64>(bytes)),
-                    BaseType::String => {
-                        if field.string_upper_bound == 0 {
-                            SimpleValue::String(reinterpret::<rosidl_runtime_rs::String>(bytes))
-                        } else {
-                            SimpleValue::BoundedString($select!(
-                                immutable => DynamicBoundedString {
-                                    inner: reinterpret::<rosidl_runtime_rs::String>(bytes),
-                                    upper_bound: field.string_upper_bound,
-                                },
-                                mutable => DynamicBoundedStringMut {
-                                    inner: reinterpret::<rosidl_runtime_rs::String>(bytes),
-                                    upper_bound: field.string_upper_bound,
-                                }
-                            ))
-                        }
+                    BaseType::String => SimpleValue::String(reinterpret::<rosidl_runtime_rs::String>(bytes)),
+                    BaseType::BoundedString { upper_bound } => {
+                        SimpleValue::BoundedString($select!(
+                            immutable => DynamicBoundedString {
+                                inner: reinterpret::<rosidl_runtime_rs::String>(bytes),
+                                upper_bound: field.string_upper_bound,
+                            },
+                            mutable => DynamicBoundedStringMut {
+                                inner: reinterpret::<rosidl_runtime_rs::String>(bytes),
+                                upper_bound: field.string_upper_bound,
+                            }
+                        ))
                     }
-                    BaseType::WString => {
-                        if field.string_upper_bound == 0 {
-                            SimpleValue::WString(reinterpret::<rosidl_runtime_rs::WString>(bytes))
-                        } else {
-                            SimpleValue::BoundedWString($select!(
-                                immutable => DynamicBoundedWString {
-                                    inner: reinterpret::<rosidl_runtime_rs::WString>(bytes),
-                                    upper_bound: field.string_upper_bound,
-                                },
-                                mutable => DynamicBoundedWStringMut {
-                                    inner: reinterpret::<rosidl_runtime_rs::WString>(bytes),
-                                    upper_bound: field.string_upper_bound,
-                                }
-                            ))
-                        }
+                    BaseType::WString => SimpleValue::WString(reinterpret::<rosidl_runtime_rs::WString>(bytes)),
+                    BaseType::BoundedWString { upper_bound } => {
+                        SimpleValue::BoundedWString($select!(
+                            immutable => DynamicBoundedWString {
+                                inner: reinterpret::<rosidl_runtime_rs::WString>(bytes),
+                                upper_bound: field.string_upper_bound,
+                            },
+                            mutable => DynamicBoundedWStringMut {
+                                inner: reinterpret::<rosidl_runtime_rs::WString>(bytes),
+                                upper_bound: field.string_upper_bound,
+                            }
+                        ))
                     }
                     BaseType::Message(structure) => SimpleValue::Message($select!(
                         immutable => DynamicMessageView {
@@ -351,56 +345,60 @@ macro_rules! define_value_types {
                         ArrayValue::Int64Array(reinterpret_array::<i64>(bytes, field.array_size))
                     }
                     BaseType::String => {
+                        ArrayValue::StringArray(reinterpret_array::<rosidl_runtime_rs::String>(
+                            bytes,
+                            field.array_size,
+                        ))
+                    }
+                    BaseType::BoundedString { upper_bound } => {
                         let slice = reinterpret_array::<rosidl_runtime_rs::String>(
                             bytes,
                             field.array_size,
                         );
-                        if field.string_upper_bound == 0 {
-                            ArrayValue::StringArray(slice)
-                        } else {
-                            let dynamic_bounded_strings: Vec<_> = slice
-                                .into_iter()
-                                .map(|inner| $select!(
-                                    immutable => DynamicBoundedString {
-                                        inner,
-                                        upper_bound: field.string_upper_bound,
-                                    },
-                                    mutable => DynamicBoundedStringMut {
-                                        inner,
-                                        upper_bound: field.string_upper_bound,
-                                    }
-                                ))
-                                .collect();
-                            ArrayValue::BoundedStringArray(
-                                dynamic_bounded_strings.into_boxed_slice(),
-                            )
-                        }
+                        let dynamic_bounded_strings: Vec<_> = slice
+                            .into_iter()
+                            .map(|inner| $select!(
+                                immutable => DynamicBoundedString {
+                                    inner,
+                                    upper_bound: field.string_upper_bound,
+                                },
+                                mutable => DynamicBoundedStringMut {
+                                    inner,
+                                    upper_bound: field.string_upper_bound,
+                                }
+                            ))
+                            .collect();
+                        ArrayValue::BoundedStringArray(
+                            dynamic_bounded_strings.into_boxed_slice(),
+                        )
                     }
                     BaseType::WString => {
+                        ArrayValue::WStringArray(reinterpret_array::<rosidl_runtime_rs::WString>(
+                            bytes,
+                            field.array_size,
+                        ))
+                    }
+                    BaseType::BoundedWString { upper_bound } => {
                         let slice = reinterpret_array::<rosidl_runtime_rs::WString>(
                             bytes,
                             field.array_size,
                         );
-                        if field.string_upper_bound == 0 {
-                            ArrayValue::WStringArray(slice)
-                        } else {
-                            let dynamic_bounded_wstrings: Vec<_> = slice
-                                .into_iter()
-                                .map(|inner| $select!(
-                                    immutable => DynamicBoundedWString {
-                                        inner,
-                                        upper_bound: field.string_upper_bound,
-                                    },
-                                    mutable => DynamicBoundedWStringMut {
-                                        inner,
-                                        upper_bound: field.string_upper_bound,
-                                    }
-                                ))
-                                .collect();
-                            ArrayValue::BoundedWStringArray(
-                                dynamic_bounded_wstrings.into_boxed_slice(),
-                            )
-                        }
+                        let dynamic_bounded_wstrings: Vec<_> = slice
+                            .into_iter()
+                            .map(|inner| $select!(
+                                immutable => DynamicBoundedWString {
+                                    inner,
+                                    upper_bound: field.string_upper_bound,
+                                },
+                                mutable => DynamicBoundedWStringMut {
+                                    inner,
+                                    upper_bound: field.string_upper_bound,
+                                }
+                            ))
+                            .collect();
+                        ArrayValue::BoundedWStringArray(
+                            dynamic_bounded_wstrings.into_boxed_slice(),
+                        )
                     }
                     BaseType::Message(structure) => {
                         let messages: Vec<_> = $select!(
@@ -478,12 +476,12 @@ macro_rules! define_value_types {
                     BaseType::Int64 => {
                         SequenceValue::Int64Sequence(reinterpret::<Sequence<i64>>(bytes))
                     }
-                    BaseType::String if field.string_upper_bound == 0 => {
+                    BaseType::String => {
                         SequenceValue::StringSequence(reinterpret::<
                             Sequence<rosidl_runtime_rs::String>,
                         >(bytes))
                     }
-                    BaseType::String => {
+                    BaseType::BoundedString { upper_bound } => {
                         SequenceValue::BoundedStringSequence(
                             $select!(
                                 immutable => {
@@ -500,12 +498,12 @@ macro_rules! define_value_types {
                             )
                         )
                     }
-                    BaseType::WString if field.string_upper_bound == 0 => {
+                    BaseType::WString => {
                         SequenceValue::WStringSequence(reinterpret::<
                             Sequence<rosidl_runtime_rs::WString>,
                         >(bytes))
                     }
-                    BaseType::WString => {
+                    BaseType::BoundedWString { upper_bound } => {
                         SequenceValue::BoundedWStringSequence(
                             $select!(
                                 immutable => {
@@ -764,7 +762,7 @@ macro_rules! define_value_types {
                             )
                         ))
                     }
-                    BaseType::String if field.string_upper_bound == 0 => {
+                    BaseType::String => {
                         BoundedSequenceValue::StringBoundedSequence($select!(
                             immutable => {
                                 DynamicBoundedSequence::new_primitive(
@@ -779,7 +777,7 @@ macro_rules! define_value_types {
                             )
                         ))
                     }
-                    BaseType::String => {
+                    BaseType::BoundedString { upper_bound } => {
                         BoundedSequenceValue::BoundedStringBoundedSequence($select!(
                             immutable => { DynamicBoundedSequence::new_proxy(bytes, field.array_size, field.string_upper_bound) },
                             mutable => DynamicBoundedSequenceMut::new_proxy(
@@ -790,7 +788,7 @@ macro_rules! define_value_types {
                             )
                         ))
                     }
-                    BaseType::WString if field.string_upper_bound == 0 => {
+                    BaseType::WString => {
                         BoundedSequenceValue::WStringBoundedSequence($select!(
                             immutable => {
                                 DynamicBoundedSequence::new_primitive(
@@ -805,7 +803,7 @@ macro_rules! define_value_types {
                             )
                         ))
                     }
-                    BaseType::WString => {
+                    BaseType::BoundedWString { upper_bound } => {
                         BoundedSequenceValue::BoundedWStringBoundedSequence($select!(
                             immutable => { DynamicBoundedSequence::new_proxy(bytes, field.array_size, field.string_upper_bound) },
                             mutable => DynamicBoundedSequenceMut::new_proxy(

@@ -5,6 +5,7 @@ use crate::rcl_bindings::*;
 use std::collections::HashMap;
 use std::ffi::CStr;
 use std::ops::Index;
+use std::num::NonZeroUsize;
 
 /// A description of the structure of a message.
 ///
@@ -121,8 +122,9 @@ impl MessageFieldType {
     // pointer and store it in a rosidl_message_member_t.
     unsafe fn from(rosidl_message_member: &rosidl_message_member_t) -> Self {
         Self {
-            base_type: BaseType::from_type_id(
+            base_type: BaseType::new(
                 rosidl_message_member.type_id_,
+                NonZeroUsize::new(rosidl_message_member.string_upper_bound_),
                 rosidl_message_member.members_,
             ),
             is_array: rosidl_message_member.is_array_,
@@ -179,7 +181,9 @@ pub enum BaseType {
     Uint64,
     Int64,
     String,
+    BoundedString { upper_bound: NonZeroUsize },
     WString,
+    BoundedWString { upper_bound: NonZeroUsize },
     Message(Box<MessageStructure>),
 }
 
@@ -187,7 +191,7 @@ impl BaseType {
     // The inner message type support will be nullptr except for the case of a nested message.
     // That function must be unsafe, since it is possible to safely create a garbage non-null
     // pointer.
-    unsafe fn from_type_id(type_id: u8, inner: *const rosidl_message_type_support_t) -> Self {
+    unsafe fn new(type_id: u8, string_upper_bound: Option<NonZeroUsize>, inner: *const rosidl_message_type_support_t) -> Self {
         use rosidl_typesupport_introspection_c_field_types::*;
         match u32::from(type_id) {
             x if x == rosidl_typesupport_introspection_c__ROS_TYPE_FLOAT as u32 => Self::Float,
@@ -207,8 +211,18 @@ impl BaseType {
             x if x == rosidl_typesupport_introspection_c__ROS_TYPE_INT32 as u32 => Self::Int32,
             x if x == rosidl_typesupport_introspection_c__ROS_TYPE_UINT64 as u32 => Self::Uint64,
             x if x == rosidl_typesupport_introspection_c__ROS_TYPE_INT64 as u32 => Self::Int64,
-            x if x == rosidl_typesupport_introspection_c__ROS_TYPE_STRING as u32 => Self::String,
-            x if x == rosidl_typesupport_introspection_c__ROS_TYPE_WSTRING as u32 => Self::WString,
+            x if x == rosidl_typesupport_introspection_c__ROS_TYPE_STRING as u32 => {
+                match string_upper_bound {
+                    None => Self::String,
+                    Some(upper_bound) => Self::BoundedString { upper_bound }
+                }
+            },
+            x if x == rosidl_typesupport_introspection_c__ROS_TYPE_WSTRING as u32 => {
+                match string_upper_bound {
+                    None => Self::WString,
+                    Some(upper_bound) => Self::BoundedWString { upper_bound }
+                }
+            },
             x if x == rosidl_typesupport_introspection_c__ROS_TYPE_MESSAGE as u32 => {
                 assert!(!inner.is_null());
                 let type_support: &rosidl_message_type_support_t = &*inner;
