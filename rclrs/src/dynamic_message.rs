@@ -341,6 +341,47 @@ impl DynamicMessage {
         &self.metadata.structure
     }
 
+
+    // /// Iterate over all fields in declaration order.
+    // pub fn iter_inorder(&self) -> impl Iterator<Item = (String, Value<'msg>)> + '_ {
+    //     let fields = self.structure.fields_inorder();
+    //     fields.into_iter().map(|field| {
+    //         let value = self.get(&field).unwrap();
+    //         (field, value)
+    //     })
+    // }
+
+    // /// Iterate over all fields in declaration order (mutable version).
+    // pub fn iter_mut_inorder(&self) -> impl Iterator<Item = (String, ValueMut<'msg>)> + '_ {
+    //     let fields = self.structure.fields_inorder();
+    //     fields.into_iter().map(|field| {
+    //         let value = self.get_mut(&field).unwrap();
+    //         (field, value)
+    //     })
+    // }
+
+    /// Returns a view object of this message.
+    ///
+    /// The purpose for this conversion is to allow uniform handling of this top-level message
+    /// and nested messages contained in it through a [`DynamicMessageView`].
+    pub fn view(&self) -> DynamicMessageView<'_> {
+        DynamicMessageView {
+            structure: &self.metadata.structure,
+            storage: &self.storage,
+        }
+    }
+
+    /// Returns a mutable view object of this message.
+    ///
+    /// The purpose for this conversion is to allow uniform handling of this top-level message
+    /// and nested messages contained in it through a [`DynamicMessageViewMut`].
+    pub fn view_mut(&mut self) -> DynamicMessageViewMut<'_> {
+        DynamicMessageViewMut {
+            structure: &self.metadata.structure,
+            storage: &mut self.storage,
+        }
+    }
+
     /// Converts a statically typed RMW-native message into a `DynamicMessage`.
     pub fn convert_from_rmw_message<T>(mut msg: T) -> Result<Self, DynamicMessageError>
     where
@@ -392,28 +433,6 @@ impl DynamicMessage {
             Ok(dest)
         } else {
             Err(self)
-        }
-    }
-
-    /// Returns a view object of this message.
-    ///
-    /// The purpose for this conversion is to allow uniform handling of this top-level message
-    /// and nested messages contained in it through a [`DynamicMessageView`].
-    pub fn view(&self) -> DynamicMessageView<'_> {
-        DynamicMessageView {
-            structure: &self.metadata.structure,
-            storage: &self.storage,
-        }
-    }
-
-    /// Returns a mutable view object of this message.
-    ///
-    /// The purpose for this conversion is to allow uniform handling of this top-level message
-    /// and nested messages contained in it through a [`DynamicMessageViewMut`].
-    pub fn view_mut(&mut self) -> DynamicMessageViewMut<'_> {
-        DynamicMessageViewMut {
-            structure: &self.metadata.structure,
-            storage: &mut self.storage,
         }
     }
 }

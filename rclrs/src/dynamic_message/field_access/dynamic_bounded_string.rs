@@ -1,8 +1,10 @@
 use rosidl_runtime_rs::StringExceedsBoundsError;
+use super::{DynamicSequenceElementMut, Proxy, ProxyMut, ProxySequence};
+
 use std::convert::AsMut;
 use std::ops::{Deref, DerefMut};
-
-use super::{DynamicSequenceElementMut, Proxy, ProxyMut, ProxySequence};
+use std::num::NonZeroUsize;
+use std::fmt::{self, Display};
 
 /// A bounded String whose upper bound is only known at runtime.
 ///
@@ -11,7 +13,7 @@ use super::{DynamicSequenceElementMut, Proxy, ProxyMut, ProxySequence};
 #[derive(Debug, Hash, PartialOrd, PartialEq, Eq, Ord)]
 pub struct DynamicBoundedString<'msg> {
     pub(super) inner: &'msg rosidl_runtime_rs::String,
-    pub(super) upper_bound: usize,
+    pub(super) upper_bound: NonZeroUsize,
 }
 
 /// A bounded WString whose upper bound is only known at runtime.
@@ -21,7 +23,7 @@ pub struct DynamicBoundedString<'msg> {
 #[derive(Debug, Hash, PartialOrd, PartialEq, Eq, Ord)]
 pub struct DynamicBoundedWString<'msg> {
     pub(super) inner: &'msg rosidl_runtime_rs::WString,
-    pub(super) upper_bound: usize,
+    pub(super) upper_bound: NonZeroUsize,
 }
 
 /// A bounded String whose upper bound is only known at runtime.
@@ -37,7 +39,7 @@ pub struct DynamicBoundedWString<'msg> {
 #[derive(Debug, Hash, PartialOrd, PartialEq, Eq, Ord)]
 pub struct DynamicBoundedStringMut<'msg> {
     pub(super) inner: &'msg mut rosidl_runtime_rs::String,
-    pub(super) upper_bound: usize,
+    pub(super) upper_bound: NonZeroUsize,
 }
 
 /// A bounded WString whose upper bound is only known at runtime.
@@ -53,7 +55,7 @@ pub struct DynamicBoundedStringMut<'msg> {
 #[derive(Debug, Hash, PartialOrd, PartialEq, Eq, Ord)]
 pub struct DynamicBoundedWStringMut<'msg> {
     pub(super) inner: &'msg mut rosidl_runtime_rs::WString,
-    pub(super) upper_bound: usize,
+    pub(super) upper_bound: NonZeroUsize,
 }
 
 // ========================= impl for dynamic bounded strings =========================
@@ -65,14 +67,20 @@ impl<'msg> Deref for DynamicBoundedString<'msg> {
     }
 }
 
-unsafe impl<'msg> Proxy<'msg> for DynamicBoundedString<'msg> {
-    type Metadata = usize; // String upper bound
+impl<'msg> Display for DynamicBoundedString<'msg> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        self.inner.fmt(f)
+    }
+}
 
-    fn size_in_memory(_: usize) -> usize {
+unsafe impl<'msg> Proxy<'msg> for DynamicBoundedString<'msg> {
+    type Metadata = NonZeroUsize; // String upper bound
+
+    fn size_in_memory(_: NonZeroUsize) -> usize {
         std::mem::size_of::<rosidl_runtime_rs::String>()
     }
 
-    unsafe fn new(bytes: &'msg [u8], string_upper_bound: usize) -> Self {
+    unsafe fn new(bytes: &'msg [u8], string_upper_bound: NonZeroUsize) -> Self {
         let inner = &*(bytes.as_ptr() as *const rosidl_runtime_rs::String);
         Self {
             inner,
@@ -83,14 +91,14 @@ unsafe impl<'msg> Proxy<'msg> for DynamicBoundedString<'msg> {
 
 impl<'msg> DynamicBoundedString<'msg> {
     /// Returns the maximum length of this string.
-    pub fn upper_bound(&self) -> usize {
+    pub fn upper_bound(&self) -> NonZeroUsize {
         self.upper_bound
     }
 }
 
 impl<'msg> DynamicBoundedWString<'msg> {
     /// Returns the maximum length of this string.
-    pub fn upper_bound(&self) -> usize {
+    pub fn upper_bound(&self) -> NonZeroUsize {
         self.upper_bound
     }
 }
@@ -102,14 +110,20 @@ impl<'msg> Deref for DynamicBoundedWString<'msg> {
     }
 }
 
-unsafe impl<'msg> Proxy<'msg> for DynamicBoundedWString<'msg> {
-    type Metadata = usize; // String upper bound
+impl<'msg> Display for DynamicBoundedWString<'msg> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        self.inner.fmt(f)
+    }
+}
 
-    fn size_in_memory(_: usize) -> usize {
+unsafe impl<'msg> Proxy<'msg> for DynamicBoundedWString<'msg> {
+    type Metadata = NonZeroUsize; // String upper bound
+
+    fn size_in_memory(_: NonZeroUsize) -> usize {
         std::mem::size_of::<rosidl_runtime_rs::WString>()
     }
 
-    unsafe fn new(bytes: &'msg [u8], string_upper_bound: usize) -> Self {
+    unsafe fn new(bytes: &'msg [u8], string_upper_bound: NonZeroUsize) -> Self {
         let inner = &*(bytes.as_ptr() as *const rosidl_runtime_rs::WString);
         Self {
             inner,
@@ -131,18 +145,24 @@ impl<'msg> Deref for DynamicBoundedStringMut<'msg> {
     }
 }
 
+impl<'msg> Display for DynamicBoundedStringMut<'msg> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        self.inner.fmt(f)
+    }
+}
+
 impl<'msg> DynamicSequenceElementMut<'msg> for DynamicBoundedStringMut<'msg> {
     type InnerSequence = ProxySequence<'msg, Self>;
 }
 
 unsafe impl<'msg> ProxyMut<'msg> for DynamicBoundedStringMut<'msg> {
-    type Metadata = usize; // String upper bound
+    type Metadata = NonZeroUsize; // String upper bound
 
-    fn size_in_memory(_: usize) -> usize {
+    fn size_in_memory(_: NonZeroUsize) -> usize {
         std::mem::size_of::<rosidl_runtime_rs::String>()
     }
 
-    unsafe fn new(bytes: &'msg mut [u8], string_upper_bound: usize) -> Self {
+    unsafe fn new(bytes: &'msg mut [u8], string_upper_bound: NonZeroUsize) -> Self {
         let inner = &mut *(bytes.as_mut_ptr() as *mut rosidl_runtime_rs::String);
         Self {
             inner,
@@ -153,20 +173,20 @@ unsafe impl<'msg> ProxyMut<'msg> for DynamicBoundedStringMut<'msg> {
 
 impl<'msg> DynamicBoundedStringMut<'msg> {
     /// Returns the maximum length of this string.
-    pub fn upper_bound(&self) -> usize {
+    pub fn upper_bound(&self) -> NonZeroUsize {
         self.upper_bound
     }
 
     /// If the given string is not too long, assign it to self.
     pub fn try_assign(&mut self, s: &str) -> Result<(), StringExceedsBoundsError> {
         let length = s.chars().count();
-        if length <= self.upper_bound {
+        if length <= self.upper_bound.into() {
             *self.inner = rosidl_runtime_rs::String::from(s);
             Ok(())
         } else {
             Err(StringExceedsBoundsError {
                 len: length,
-                upper_bound: self.upper_bound,
+                upper_bound: self.upper_bound.into(),
             })
         }
     }
@@ -185,18 +205,24 @@ impl<'msg> Deref for DynamicBoundedWStringMut<'msg> {
     }
 }
 
+impl<'msg> Display for DynamicBoundedWStringMut<'msg> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        self.inner.fmt(f)
+    }
+}
+
 impl<'msg> DynamicSequenceElementMut<'msg> for DynamicBoundedWStringMut<'msg> {
     type InnerSequence = ProxySequence<'msg, Self>;
 }
 
 unsafe impl<'msg> ProxyMut<'msg> for DynamicBoundedWStringMut<'msg> {
-    type Metadata = usize; // String upper bound
+    type Metadata = NonZeroUsize; // String upper bound
 
-    fn size_in_memory(_: usize) -> usize {
+    fn size_in_memory(_: NonZeroUsize) -> usize {
         std::mem::size_of::<rosidl_runtime_rs::WString>()
     }
 
-    unsafe fn new(bytes: &'msg mut [u8], string_upper_bound: usize) -> Self {
+    unsafe fn new(bytes: &'msg mut [u8], string_upper_bound: NonZeroUsize) -> Self {
         let inner = &mut *(bytes.as_mut_ptr() as *mut rosidl_runtime_rs::WString);
         Self {
             inner,
@@ -207,20 +233,20 @@ unsafe impl<'msg> ProxyMut<'msg> for DynamicBoundedWStringMut<'msg> {
 
 impl<'msg> DynamicBoundedWStringMut<'msg> {
     /// Returns the maximum length of this string.
-    pub fn upper_bound(&self) -> usize {
+    pub fn upper_bound(&self) -> NonZeroUsize {
         self.upper_bound
     }
 
     /// If the given string is not too long, assign it to self.
     pub fn try_assign(&mut self, s: &str) -> Result<(), StringExceedsBoundsError> {
         let length = s.chars().count();
-        if length <= self.upper_bound {
+        if length <= self.upper_bound.into() {
             *self.inner = rosidl_runtime_rs::WString::from(s);
             Ok(())
         } else {
             Err(StringExceedsBoundsError {
                 len: length,
-                upper_bound: self.upper_bound,
+                upper_bound: self.upper_bound.into(),
             })
         }
     }

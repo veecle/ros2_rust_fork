@@ -251,11 +251,11 @@ macro_rules! define_value_types {
                         SimpleValue::BoundedString($select!(
                             immutable => DynamicBoundedString {
                                 inner: reinterpret::<rosidl_runtime_rs::String>(bytes),
-                                upper_bound: field.string_upper_bound,
+                                upper_bound: *upper_bound,
                             },
                             mutable => DynamicBoundedStringMut {
                                 inner: reinterpret::<rosidl_runtime_rs::String>(bytes),
-                                upper_bound: field.string_upper_bound,
+                                upper_bound: *upper_bound,
                             }
                         ))
                     }
@@ -264,11 +264,11 @@ macro_rules! define_value_types {
                         SimpleValue::BoundedWString($select!(
                             immutable => DynamicBoundedWString {
                                 inner: reinterpret::<rosidl_runtime_rs::WString>(bytes),
-                                upper_bound: field.string_upper_bound,
+                                upper_bound: *upper_bound,
                             },
                             mutable => DynamicBoundedWStringMut {
                                 inner: reinterpret::<rosidl_runtime_rs::WString>(bytes),
-                                upper_bound: field.string_upper_bound,
+                                upper_bound: *upper_bound,
                             }
                         ))
                     }
@@ -360,11 +360,11 @@ macro_rules! define_value_types {
                             .map(|inner| $select!(
                                 immutable => DynamicBoundedString {
                                     inner,
-                                    upper_bound: field.string_upper_bound,
+                                    upper_bound: *upper_bound,
                                 },
                                 mutable => DynamicBoundedStringMut {
                                     inner,
-                                    upper_bound: field.string_upper_bound,
+                                    upper_bound: *upper_bound,
                                 }
                             ))
                             .collect();
@@ -388,11 +388,11 @@ macro_rules! define_value_types {
                             .map(|inner| $select!(
                                 immutable => DynamicBoundedWString {
                                     inner,
-                                    upper_bound: field.string_upper_bound,
+                                    upper_bound: *upper_bound,
                                 },
                                 mutable => DynamicBoundedWStringMut {
                                     inner,
-                                    upper_bound: field.string_upper_bound,
+                                    upper_bound: *upper_bound,
                                 }
                             ))
                             .collect();
@@ -487,12 +487,12 @@ macro_rules! define_value_types {
                                 immutable => {
                                     DynamicSequence::new_proxy(
                                         bytes,
-                                        field.string_upper_bound
+                                        *upper_bound
                                     )
                                 },
                                 mutable => DynamicSequenceMut::new_proxy(
                                     bytes,
-                                    field.string_upper_bound,
+                                    *upper_bound,
                                     field.resize_function.unwrap(),
                                 )
                             )
@@ -509,12 +509,12 @@ macro_rules! define_value_types {
                                 immutable => {
                                     DynamicSequence::new_proxy(
                                         bytes,
-                                        field.string_upper_bound
+                                        *upper_bound
                                     )
                                 },
                                 mutable => DynamicSequenceMut::new_proxy(
                                     bytes,
-                                    field.string_upper_bound,
+                                    *upper_bound,
                                     field.resize_function.unwrap(),
                                 )
                             )
@@ -779,10 +779,10 @@ macro_rules! define_value_types {
                     }
                     BaseType::BoundedString { upper_bound } => {
                         BoundedSequenceValue::BoundedStringBoundedSequence($select!(
-                            immutable => { DynamicBoundedSequence::new_proxy(bytes, field.array_size, field.string_upper_bound) },
+                            immutable => { DynamicBoundedSequence::new_proxy(bytes, field.array_size, *upper_bound) },
                             mutable => DynamicBoundedSequenceMut::new_proxy(
                                 bytes,
-                                field.string_upper_bound,
+                                *upper_bound,
                                 field.array_size,
                                 field.resize_function.unwrap()
                             )
@@ -805,10 +805,10 @@ macro_rules! define_value_types {
                     }
                     BaseType::BoundedWString { upper_bound } => {
                         BoundedSequenceValue::BoundedWStringBoundedSequence($select!(
-                            immutable => { DynamicBoundedSequence::new_proxy(bytes, field.array_size, field.string_upper_bound) },
+                            immutable => { DynamicBoundedSequence::new_proxy(bytes, field.array_size, *upper_bound) },
                             mutable => DynamicBoundedSequenceMut::new_proxy(
                                 bytes,
-                                field.string_upper_bound,
+                                *upper_bound,
                                 field.array_size,
                                 field.resize_function.unwrap()
                             )

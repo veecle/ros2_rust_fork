@@ -52,13 +52,22 @@ impl<'msg> DynamicMessageView<'msg> {
     /// Tries to access a field in the message.
     ///
     /// If no field of that name exists, `None` is returned.
-    pub fn get(&self, field_name: &str) -> Option<Value<'_>> {
+    pub fn get(&self, field_name: &str) -> Option<Value<'msg>> {
         unsafe { Value::new(self.storage, self.structure, field_name) }
     }
 
     /// Returns a description of the message structure.
     pub fn structure(&self) -> &MessageStructure {
         self.structure
+    }
+
+    /// Iterate over all fields in declaration order.
+    pub fn iter_inorder(&self) -> impl Iterator<Item = (String, Value<'msg>)> + '_ {
+        let fields = self.structure.fields_inorder();
+        fields.into_iter().map(|field| {
+            let value = self.get(&field).unwrap();
+            (field, value)
+        })
     }
 }
 
@@ -109,4 +118,23 @@ impl<'msg> DynamicMessageViewMut<'msg> {
     pub fn structure(&self) -> &MessageStructure {
         self.structure
     }
+
+    /// Iterate over all fields in declaration order.
+    pub fn iter_inorder(&self) -> impl Iterator<Item = (String, Value<'_>)> + '_ {
+        let fields = self.structure.fields_inorder();
+        fields.into_iter().map(|field| {
+            let value = self.get(&field).unwrap();
+            (field, value)
+        })
+    }
+
+    /// Iterate over all fields in declaration order (mutable version).
+    pub fn iter_mut_inorder(&mut self) -> impl Iterator<Item = (String, ValueMut<'_>)> + '_ {
+        let fields = self.structure.fields_inorder();
+        fields.into_iter().map(|field| {
+            let value = self.get_mut(&field).unwrap();
+            (field, value)
+        })
+    }
+
 }
