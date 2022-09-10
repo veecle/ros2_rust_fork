@@ -14,7 +14,6 @@ pub use dynamic_sequence::*;
 // It's annoying, but imo still better than doing something hard-to-read like
 // https://lab.whitequark.org/notes/2016-12-13/abstracting-over-mutability-in-rust/
 
-
 /// Helper function for use with reinterpret()/reinterpret_array()
 fn check<T>(bytes: &[u8]) {
     assert!(bytes.len() >= std::mem::size_of::<T>());
@@ -919,7 +918,7 @@ impl<'msg> Value<'msg> {
         structure: &'msg MessageStructure,
         field_name: &str,
     ) -> Option<Value<'msg>> {
-        let field_info = structure.fields.get(field_name)?;
+        let field_info = structure.get(field_name)?;
         let bytes = &storage[field_info.offset..];
         Some(match field_info.value_kind() {
             ValueKind::Simple => Value::Simple(SimpleValue::new(bytes, field_info)),
@@ -993,7 +992,9 @@ impl<'msg> ValueMut<'msg> {
         match field_info.value_kind() {
             ValueKind::Simple => ValueMut::Simple(SimpleValueMut::new(value_bytes, field_info)),
             ValueKind::Array { .. } => ValueMut::Array(ArrayValueMut::new(value_bytes, field_info)),
-            ValueKind::Sequence => ValueMut::Sequence(SequenceValueMut::new(value_bytes, field_info)),
+            ValueKind::Sequence => {
+                ValueMut::Sequence(SequenceValueMut::new(value_bytes, field_info))
+            }
             ValueKind::BoundedSequence { .. } => {
                 ValueMut::BoundedSequence(BoundedSequenceValueMut::new(value_bytes, field_info))
             }

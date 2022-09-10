@@ -1,8 +1,8 @@
 use super::check;
 use rosidl_runtime_rs::{Sequence, SequenceAlloc, SequenceExceedsBoundsError};
+use std::fmt::{self, Debug};
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
-use std::fmt::{self, Debug};
 
 mod private {
     pub trait Sealed {}
@@ -95,7 +95,7 @@ pub unsafe trait ProxyMut<'msg> {
 
 // This trait abstracts over &mut Sequence<T> vs ProxySequence<T>.
 #[doc(hidden)]
-pub trait InnerSequence<T: PartialEq> : PartialEq {
+pub trait InnerSequence<T: PartialEq>: PartialEq {
     fn as_slice(&self) -> &[T];
     fn as_mut_slice(&mut self) -> &mut [T];
     fn resize_unchecked(&mut self, resize_function: ResizeFunction, len: usize);
@@ -111,7 +111,10 @@ pub struct ProxySequence<'msg, T: ProxyMut<'msg>> {
     metadata: T::Metadata,
 }
 
-impl<'msg, T> InnerSequence<T> for ProxySequence<'msg, T> where T: PartialEq + ProxyMut<'msg> {
+impl<'msg, T> InnerSequence<T> for ProxySequence<'msg, T>
+where
+    T: PartialEq + ProxyMut<'msg>,
+{
     fn as_slice(&self) -> &[T] {
         self.proxies.as_slice()
     }
@@ -130,7 +133,10 @@ impl<'msg, T> InnerSequence<T> for ProxySequence<'msg, T> where T: PartialEq + P
     }
 }
 
-impl<'msg, T> InnerSequence<T> for &'msg mut Sequence<T> where T: PartialEq + SequenceAlloc{
+impl<'msg, T> InnerSequence<T> for &'msg mut Sequence<T>
+where
+    T: PartialEq + SequenceAlloc,
+{
     fn as_slice(&self) -> &[T] {
         // self.as_slice() would call this trait method itself
         Sequence::as_slice(self)
@@ -148,12 +154,14 @@ impl<'msg, T> InnerSequence<T> for &'msg mut Sequence<T> where T: PartialEq + Se
     }
 }
 
-impl<'msg, T> PartialEq for ProxySequence<'msg, T> where T: PartialEq + ProxyMut<'msg> {
+impl<'msg, T> PartialEq for ProxySequence<'msg, T>
+where
+    T: PartialEq + ProxyMut<'msg>,
+{
     fn eq(&self, other: &Self) -> bool {
         self.proxies.eq(&other.proxies)
     }
 }
-
 
 // This links the element type T to the inner sequence type: &mut Sequence<T> or ProxySequence<T>.
 #[doc(hidden)]
@@ -227,7 +235,10 @@ where
     phantom: PhantomData<&'msg u8>,
 }
 
-impl<'msg, T> Debug for DynamicSequence<'msg, T> where T: Debug + Proxy<'msg> {
+impl<'msg, T> Debug for DynamicSequence<'msg, T>
+where
+    T: Debug + Proxy<'msg>,
+{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         self.elements.iter().fmt(f)
     }
@@ -283,7 +294,10 @@ pub struct DynamicBoundedSequence<'msg, T> {
     upper_bound: usize,
 }
 
-impl<'msg, T> Debug for DynamicBoundedSequence<'msg, T> where T: Debug {
+impl<'msg, T> Debug for DynamicBoundedSequence<'msg, T>
+where
+    T: Debug,
+{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         self.boo.as_slice().fmt(f)
     }
@@ -371,20 +385,29 @@ pub struct DynamicBoundedSequenceMut<'msg, T: DynamicSequenceElementMut<'msg>> {
 
 // ------------------------- impl for DynamicSequenceMut -------------------------
 
-impl<'msg, T> Debug for DynamicSequenceMut<'msg, T> where T: DynamicSequenceElementMut<'msg> {
+impl<'msg, T> Debug for DynamicSequenceMut<'msg, T>
+where
+    T: DynamicSequenceElementMut<'msg>,
+{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         self.sequence.as_slice().fmt(f)
     }
 }
 
-impl<'msg, T> Deref for DynamicSequenceMut<'msg, T> where T: DynamicSequenceElementMut<'msg> {
+impl<'msg, T> Deref for DynamicSequenceMut<'msg, T>
+where
+    T: DynamicSequenceElementMut<'msg>,
+{
     type Target = [T];
     fn deref(&self) -> &Self::Target {
         self.sequence.as_slice()
     }
 }
 
-impl<'msg, T> DerefMut for DynamicSequenceMut<'msg, T> where T: DynamicSequenceElementMut<'msg> {
+impl<'msg, T> DerefMut for DynamicSequenceMut<'msg, T>
+where
+    T: DynamicSequenceElementMut<'msg>,
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.sequence.as_mut_slice()
     }
@@ -446,8 +469,10 @@ where
 
 // ------------------------- impl for DynamicBoundedSequenceMut -------------------------
 
-
-impl<'msg, T> Debug for DynamicBoundedSequenceMut<'msg, T> where T: DynamicSequenceElementMut<'msg> {
+impl<'msg, T> Debug for DynamicBoundedSequenceMut<'msg, T>
+where
+    T: DynamicSequenceElementMut<'msg>,
+{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         self.inner.fmt(f)
     }

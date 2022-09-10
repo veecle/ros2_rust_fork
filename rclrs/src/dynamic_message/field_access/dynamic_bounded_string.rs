@@ -1,10 +1,10 @@
-use rosidl_runtime_rs::StringExceedsBoundsError;
 use super::{DynamicSequenceElementMut, Proxy, ProxyMut, ProxySequence};
+use rosidl_runtime_rs::StringExceedsBoundsError;
 
 use std::convert::AsMut;
-use std::ops::{Deref, DerefMut};
-use std::num::NonZeroUsize;
 use std::fmt::{self, Display};
+use std::num::NonZeroUsize;
+use std::ops::{Deref, DerefMut};
 
 /// A bounded String whose upper bound is only known at runtime.
 ///

@@ -333,10 +333,10 @@ impl DynamicMessage {
     ///
     /// [1]: crate::dynamic_message::DynamicMessageViewMut::get_mut
     pub fn get_mut(&mut self, field_name: &str) -> Option<ValueMut<'_>> {
-        let field_info = self.metadata.structure.fields.get(field_name)?;
+        let field_info = self.metadata.structure.get(field_name)?;
         // For the unwrap_or, see DynamicMessageViewMut::get_mut
         let size = field_info.size().unwrap_or(1);
-        let bytes = &mut self.storage[field_info.offset..field_info.offset+size];
+        let bytes = &mut self.storage[field_info.offset..field_info.offset + size];
         Some(unsafe { ValueMut::new(bytes, field_info) })
     }
 
@@ -344,7 +344,6 @@ impl DynamicMessage {
     pub fn structure(&self) -> &MessageStructure {
         &self.metadata.structure
     }
-
 
     // /// Iterate over all fields in declaration order.
     // pub fn iter_inorder(&self) -> impl Iterator<Item = (String, Value<'msg>)> + '_ {

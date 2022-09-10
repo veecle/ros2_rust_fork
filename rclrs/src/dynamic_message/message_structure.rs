@@ -1,11 +1,9 @@
+use super::TypeErasedSequence;
 use crate::rcl_bindings::rosidl_typesupport_introspection_c__MessageMember_s as rosidl_message_member_t;
 use crate::rcl_bindings::rosidl_typesupport_introspection_c__MessageMembers_s as rosidl_message_members_t;
 use crate::rcl_bindings::*;
-use super::TypeErasedSequence;
 
-use std::collections::HashMap;
 use std::ffi::CStr;
-use std::ops::Index;
 use std::num::NonZeroUsize;
 
 /// A description of the structure of a message.
@@ -13,20 +11,15 @@ use std::num::NonZeroUsize;
 /// Namely, the list of fields and their types.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MessageStructure {
-    /// The set of fields in the message, indexed by name.
-    pub field_info: HashMap<String, MessageFieldInfo>,
+    /// The set of fields in the message, ordered by their offset in the message.
+    ///
+    /// A `Vec` is easier to handle and faster than a `HashMap` for typical numbers of message fields.
+    /// If you need a `HashMap`, simply create your own from this `Vec`.
+    pub fields: Vec<MessageFieldInfo>,
     /// The size of this structure in bytes.
     pub size: usize,
     /// The name of this type.
     pub name: String,
-}
-
-impl Index<&str> for MessageStructure {
-    type Output = MessageFieldInfo;
-
-    fn index(&self, index: &str) -> &Self::Output {
-        self.field_info.index(index)
-    }
 }
 
 impl MessageStructure {
@@ -38,19 +31,16 @@ impl MessageStructure {
     ) -> Self {
         debug_assert!(!message_members.members_.is_null());
         let num_fields: usize = usize::try_from(message_members.member_count_).unwrap();
-        let field_info = (0..num_fields)
+        let mut fields: Vec<_> = (0..num_fields)
             .map(|i| {
                 // SAFETY: This is an array as per the documentation
                 let rosidl_message_member: &rosidl_message_member_t =
                     /*unsafe*/ { &*message_members.members_.add(i) };
-                debug_assert!(!rosidl_message_member.name_.is_null());
                 // SAFETY: This is a valid string pointer
-                let name = /*unsafe*/ { CStr::from_ptr(rosidl_message_member.name_) }
-                    .to_string_lossy()
-                    .into_owned();
-                (name, MessageFieldInfo::from(rosidl_message_member))
+                MessageFieldInfo::from(rosidl_message_member)
             })
             .collect();
+        fields.sort_by_key(|field_info| field_info.offset);
         // SAFETY: Immediate conversion into owned string.
         let name = /*unsafe*/ {
             CStr::from_ptr(message_members.message_name_)
@@ -58,21 +48,14 @@ impl MessageStructure {
                 .into_owned()
         };
         Self {
-            field_info,
+            fields,
             size: message_members.size_of_,
             name,
         }
     }
 
-    /// Returns the field names in the order they appear in the message.
-    pub fn fields_inorder(&self) -> Vec<String> {
-        let mut fields_by_offset: Vec<_> = self
-            .field_info
-            .keys()
-            .map(String::from)
-            .collect();
-        fields_by_offset.sort_by_cached_key(|field_name| self.field_info[field_name].offset);
-        fields_by_offset
+    pub fn get(&self, field_name: &str) -> Option<&MessageFieldInfo> {
+        self.fields.iter().find(|field| field.name == field_name)
     }
 }
 
@@ -107,6 +90,8 @@ pub enum ValueKind {
 /// [1]: crate::dynamic_message::DynamicMessage
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MessageFieldInfo {
+    /// The field name.
+    pub name: String,
     /// The base type – number, string, etc.
     pub base_type: BaseType,
     pub(crate) is_array: bool,
@@ -122,7 +107,12 @@ impl MessageFieldInfo {
     // That function must be unsafe, since it is possible to safely create a garbage non-null
     // pointer and store it in a rosidl_message_member_t.
     unsafe fn from(rosidl_message_member: &rosidl_message_member_t) -> Self {
+        debug_assert!(!rosidl_message_member.name_.is_null());
+        let name = /*unsafe*/ { CStr::from_ptr(rosidl_message_member.name_) }
+                    .to_string_lossy()
+                    .into_owned();
         Self {
+            name,
             base_type: BaseType::new(
                 rosidl_message_member.type_id_,
                 NonZeroUsize::new(rosidl_message_member.string_upper_bound_),
@@ -158,14 +148,16 @@ impl MessageFieldInfo {
     }
 
     /// Returns the size of the field in the message.
-    /// 
+    ///
     /// For sequences, it's the size of the sequence struct (ptr + size + capacity),
     /// not the size that the elements take up in memory.
     pub(crate) fn size(&self) -> Option<usize> {
         match self.value_kind() {
             ValueKind::Simple => self.base_type.size(),
             ValueKind::Array { length } => self.base_type.size().map(|size| length * size),
-            ValueKind::Sequence | ValueKind::BoundedSequence {..} => Some(std::mem::size_of::<TypeErasedSequence>()),
+            ValueKind::Sequence | ValueKind::BoundedSequence { .. } => {
+                Some(std::mem::size_of::<TypeErasedSequence>())
+            }
         }
     }
 }
@@ -194,9 +186,13 @@ pub enum BaseType {
     Uint64,
     Int64,
     String,
-    BoundedString { upper_bound: NonZeroUsize },
+    BoundedString {
+        upper_bound: NonZeroUsize,
+    },
     WString,
-    BoundedWString { upper_bound: NonZeroUsize },
+    BoundedWString {
+        upper_bound: NonZeroUsize,
+    },
     Message(Box<MessageStructure>),
 }
 
@@ -204,7 +200,11 @@ impl BaseType {
     // The inner message type support will be nullptr except for the case of a nested message.
     // That function must be unsafe, since it is possible to safely create a garbage non-null
     // pointer.
-    unsafe fn new(type_id: u8, string_upper_bound: Option<NonZeroUsize>, inner: *const rosidl_message_type_support_t) -> Self {
+    unsafe fn new(
+        type_id: u8,
+        string_upper_bound: Option<NonZeroUsize>,
+        inner: *const rosidl_message_type_support_t,
+    ) -> Self {
         use rosidl_typesupport_introspection_c_field_types::*;
         match u32::from(type_id) {
             x if x == rosidl_typesupport_introspection_c__ROS_TYPE_FLOAT as u32 => Self::Float,
@@ -227,15 +227,15 @@ impl BaseType {
             x if x == rosidl_typesupport_introspection_c__ROS_TYPE_STRING as u32 => {
                 match string_upper_bound {
                     None => Self::String,
-                    Some(upper_bound) => Self::BoundedString { upper_bound }
+                    Some(upper_bound) => Self::BoundedString { upper_bound },
                 }
-            },
+            }
             x if x == rosidl_typesupport_introspection_c__ROS_TYPE_WSTRING as u32 => {
                 match string_upper_bound {
                     None => Self::WString,
-                    Some(upper_bound) => Self::BoundedWString { upper_bound }
+                    Some(upper_bound) => Self::BoundedWString { upper_bound },
                 }
-            },
+            }
             x if x == rosidl_typesupport_introspection_c__ROS_TYPE_MESSAGE as u32 => {
                 assert!(!inner.is_null());
                 let type_support: &rosidl_message_type_support_t = &*inner;
@@ -270,9 +270,13 @@ impl BaseType {
             BaseType::Uint64 => Some(8),
             BaseType::Int64 => Some(8),
             BaseType::String => Some(std::mem::size_of::<rosidl_runtime_rs::String>()),
-            BaseType::BoundedString { .. } => Some(std::mem::size_of::<rosidl_runtime_rs::String>()),
+            BaseType::BoundedString { .. } => {
+                Some(std::mem::size_of::<rosidl_runtime_rs::String>())
+            }
             BaseType::WString => Some(std::mem::size_of::<rosidl_runtime_rs::WString>()),
-            BaseType::BoundedWString { .. } => Some(std::mem::size_of::<rosidl_runtime_rs::WString>()),
+            BaseType::BoundedWString { .. } => {
+                Some(std::mem::size_of::<rosidl_runtime_rs::WString>())
+            }
             BaseType::Message(structure) => Some(structure.size),
         }
     }
