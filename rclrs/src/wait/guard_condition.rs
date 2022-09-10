@@ -8,12 +8,15 @@ pub struct GuardCondition {
     /// The rcl_guard_condition_t that this struct encapsulates.
     rcl_guard_condition: Arc<Mutex<rcl_guard_condition_t>>,
     /// An optional callback to call when this guard condition is triggered.
-    callback: Option<Box<dyn Fn(usize)>>,
+    callback: Option<Box<dyn Fn(usize) + Send>>,
     /// A flag to indicate if this guard condition has already been assigned to a wait set.
     pub(crate) in_use_by_wait_set: Arc<AtomicBool>,
     /// A count for the number of times this guard condition was triggered, but no callback was assigned.
     unread_count: usize,
 }
+
+unsafe impl Sync for rcl_guard_condition_t {}
+unsafe impl Send for rcl_guard_condition_t {}
 
 impl Drop for GuardCondition {
     fn drop(&mut self) {
@@ -51,7 +54,7 @@ impl GuardCondition {
     }
 
     /// Sets the callback to call when this guard condition is triggered.
-    pub fn set_on_trigger_callback(&mut self, callback: Option<Box<dyn Fn(usize)>>) {
+    pub fn set_on_trigger_callback(&mut self, callback: Option<Box<dyn Fn(usize) + Send>>) {
         match callback {
             Some(callback) => {
                 if self.unread_count > 0 {

@@ -269,18 +269,18 @@ impl Node {
     }
 
     /// Returns the subscriptions that have not been dropped yet.
-    pub(crate) fn live_subscriptions(&self) -> Vec<Arc<dyn SubscriptionBase>> {
+    pub fn live_subscriptions(&self) -> Vec<Arc<dyn SubscriptionBase>> {
         self.subscriptions
             .iter()
             .filter_map(Weak::upgrade)
             .collect()
     }
 
-    pub(crate) fn live_clients(&self) -> Vec<Arc<dyn ClientBase>> {
+    pub fn live_clients(&self) -> Vec<Arc<dyn ClientBase>> {
         self.clients.iter().filter_map(Weak::upgrade).collect()
     }
 
-    pub(crate) fn live_services(&self) -> Vec<Arc<dyn ServiceBase>> {
+    pub fn live_services(&self) -> Vec<Arc<dyn ServiceBase>> {
         self.services.iter().filter_map(Weak::upgrade).collect()
     }
 

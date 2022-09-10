@@ -27,7 +27,7 @@ mod exclusivity_guard;
 use exclusivity_guard::*;
 
 mod guard_condition;
-use guard_condition::*;
+pub use guard_condition::*;
 
 /// A struct for waiting on subscriptions and other waitable entities to become ready.
 pub struct WaitSet {
@@ -116,13 +116,7 @@ impl WaitSet {
     pub fn clear(&mut self) {
         self.subscriptions.clear();
         // Guard conditions must be told that they are no longer tied to a wait set
-        self.guard_conditions.drain(..).for_each(|elem| {
-            elem.waitable
-                .lock()
-                .unwrap()
-                .in_use_by_wait_set
-                .store(false, Ordering::Relaxed)
-        });
+        self.guard_conditions.clear();
         self.clients.clear();
         self.services.clear();
         // This cannot fail – the rcl_wait_set_clear function only checks that the input handle is
