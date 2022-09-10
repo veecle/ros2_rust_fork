@@ -918,7 +918,7 @@ impl<'msg> Value<'msg> {
         structure: &'msg MessageStructure,
         field_name: &str,
     ) -> Option<Value<'msg>> {
-        let field_info = structure.get(field_name)?;
+        let field_info = structure.get_field_info(field_name)?;
         let bytes = &storage[field_info.offset..];
         Some(match field_info.value_kind() {
             ValueKind::Simple => Value::Simple(SimpleValue::new(bytes, field_info)),

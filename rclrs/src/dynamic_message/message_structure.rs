@@ -6,6 +6,40 @@ use crate::rcl_bindings::*;
 use std::ffi::CStr;
 use std::num::NonZeroUsize;
 
+/// Possible base types for fields in a message.
+// The field variants are self-explaining, no need to add redundant documentation.
+#[allow(missing_docs)]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum BaseType {
+    /// AKA `float32` in ROS .msg files.
+    Float,
+    /// AKA `float64` in ROS .msg files.
+    Double,
+    LongDouble,
+    Char,
+    WChar,
+    Boolean,
+    /// AKA `byte` in ROS .msg files.
+    Octet,
+    Uint8,
+    Int8,
+    Uint16,
+    Int16,
+    Uint32,
+    Int32,
+    Uint64,
+    Int64,
+    String,
+    BoundedString {
+        upper_bound: NonZeroUsize,
+    },
+    WString,
+    BoundedWString {
+        upper_bound: NonZeroUsize,
+    },
+    Message(Box<MessageStructure>),
+}
+
 /// A description of the structure of a message.
 ///
 /// Namely, the list of fields and their types.
@@ -20,6 +54,50 @@ pub struct MessageStructure {
     pub size: usize,
     /// The name of this type.
     pub name: String,
+}
+
+/// A description of a single field in a [`DynamicMessage`][1].
+///
+/// The concrete type of a field is the combination of its [`BaseType`] with its [`ValueKind`].
+/// That is, the base types exist as single values, arrays, bounded sequences and unbounded sequences.
+///
+/// [1]: crate::dynamic_message::DynamicMessage
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MessageFieldInfo {
+    /// The field name.
+    pub name: String,
+    /// The base type – number, string, etc.
+    pub base_type: BaseType,
+    pub(crate) is_array: bool,
+    pub(crate) is_upper_bound: bool,
+    pub(crate) array_size: usize,
+    pub(crate) string_upper_bound: usize,
+    pub(crate) resize_function:
+        Option<unsafe extern "C" fn(arg1: *mut libc::c_void, size: usize) -> bool>,
+    pub(crate) offset: usize,
+}
+
+/// Information on whether a field is a single value or a list of some kind.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ValueKind {
+    /// This field is a single value, which includes string values.
+    Simple,
+    /// This field is an array of values.
+    Array {
+        /// The array length.
+        length: usize,
+    },
+    /// This field is a [`Sequence`][1] of values.
+    ///
+    /// [1]: rosidl_runtime_rs::Sequence
+    Sequence,
+    /// This field is a [`BoundedSequence`][1] of values.
+    ///
+    /// [1]: rosidl_runtime_rs::BoundedSequence
+    BoundedSequence {
+        /// The maximum sequence length.
+        upper_bound: usize,
+    },
 }
 
 impl MessageStructure {
@@ -54,53 +132,10 @@ impl MessageStructure {
         }
     }
 
-    pub fn get(&self, field_name: &str) -> Option<&MessageFieldInfo> {
+    /// Gets the field info corresponding to the specified field name, if any.
+    pub fn get_field_info(&self, field_name: &str) -> Option<&MessageFieldInfo> {
         self.fields.iter().find(|field| field.name == field_name)
     }
-}
-
-/// Information on whether a field is a single value or a list of some kind.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ValueKind {
-    /// This field is a single value, which includes string values.
-    Simple,
-    /// This field is an array of values.
-    Array {
-        /// The array length.
-        length: usize,
-    },
-    /// This field is a [`Sequence`][1] of values.
-    ///
-    /// [1]: rosidl_runtime_rs::Sequence
-    Sequence,
-    /// This field is a [`BoundedSequence`][1] of values.
-    ///
-    /// [1]: rosidl_runtime_rs::BoundedSequence
-    BoundedSequence {
-        /// The maximum sequence length.
-        upper_bound: usize,
-    },
-}
-
-/// A description of a single field in a [`DynamicMessage`][1].
-///
-/// The concrete type of a field is the combination of its [`BaseType`] with its [`ValueKind`].
-/// That is, the base types exist as single values, arrays, bounded sequences and unbounded sequences.
-///
-/// [1]: crate::dynamic_message::DynamicMessage
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct MessageFieldInfo {
-    /// The field name.
-    pub name: String,
-    /// The base type – number, string, etc.
-    pub base_type: BaseType,
-    pub(crate) is_array: bool,
-    pub(crate) is_upper_bound: bool,
-    pub(crate) array_size: usize,
-    pub(crate) string_upper_bound: usize,
-    pub(crate) resize_function:
-        Option<unsafe extern "C" fn(arg1: *mut libc::c_void, size: usize) -> bool>,
-    pub(crate) offset: usize,
 }
 
 impl MessageFieldInfo {
@@ -160,40 +195,6 @@ impl MessageFieldInfo {
             }
         }
     }
-}
-
-/// Possible base types for fields in a message.
-// The field variants are self-explaining, no need to add redundant documentation.
-#[allow(missing_docs)]
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum BaseType {
-    /// AKA `float32` in ROS .msg files.
-    Float,
-    /// AKA `float64` in ROS .msg files.
-    Double,
-    LongDouble,
-    Char,
-    WChar,
-    Boolean,
-    /// AKA `byte` in ROS .msg files.
-    Octet,
-    Uint8,
-    Int8,
-    Uint16,
-    Int16,
-    Uint32,
-    Int32,
-    Uint64,
-    Int64,
-    String,
-    BoundedString {
-        upper_bound: NonZeroUsize,
-    },
-    WString,
-    BoundedWString {
-        upper_bound: NonZeroUsize,
-    },
-    Message(Box<MessageStructure>),
 }
 
 impl BaseType {

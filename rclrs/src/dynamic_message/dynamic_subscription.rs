@@ -186,3 +186,18 @@ impl SubscriptionBase for DynamicSubscription {
         Ok(())
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn assert_send<T: Send>() {}
+    fn assert_sync<T: Sync>() {}
+
+    #[test]
+    fn dynamic_subscription_is_sync_and_send() {
+        assert_send::<DynamicSubscription>();
+        assert_sync::<DynamicSubscription>();
+    }
+}

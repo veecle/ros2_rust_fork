@@ -40,6 +40,10 @@ where
     message: PhantomData<T>,
 }
 
+// Rust doesn't implement these because of the raw pointer
+unsafe impl<T> Send for Publisher<T> where T: Message {}
+unsafe impl<T> Sync for Publisher<T> where T: Message {}
+
 impl<T> Drop for Publisher<T>
 where
     T: Message,

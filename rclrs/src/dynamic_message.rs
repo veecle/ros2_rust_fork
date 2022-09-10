@@ -11,6 +11,7 @@ use rosidl_typesupport_introspection_c__MessageMembers_s as rosidl_message_membe
 use std::fmt::{self, Display};
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::ops::Deref;
 
 mod dynamic_subscription;
 mod error;
@@ -285,13 +286,13 @@ impl DynamicMessageMetadata {
 
 // ========================= impl for DynamicMessage =========================
 
-// SAFETY: The type_support_ptr member is the one that makes this type not implement Sync
-// automatically, but it is not used for interior mutability.
-unsafe impl Sync for DynamicMessage {}
+impl<'msg> Deref for DynamicMessage {
+    type Target = MessageStructure;
+    fn deref(&self) -> &Self::Target {
+        &self.metadata.structure
+    }
+}
 
-// SAFETY: The functions accessing this type, including drop(), shouldn't care about the thread
-// they are running in. Therefore, this type can be safely sent to another thread.
-unsafe impl Send for DynamicMessage {}
 
 impl Drop for DynamicMessage {
     fn drop(&mut self) {
@@ -333,7 +334,7 @@ impl DynamicMessage {
     ///
     /// [1]: crate::dynamic_message::DynamicMessageViewMut::get_mut
     pub fn get_mut(&mut self, field_name: &str) -> Option<ValueMut<'_>> {
-        let field_info = self.metadata.structure.get(field_name)?;
+        let field_info = self.metadata.structure.get_field_info(field_name)?;
         // For the unwrap_or, see DynamicMessageViewMut::get_mut
         let size = field_info.size().unwrap_or(1);
         let bytes = &mut self.storage[field_info.offset..field_info.offset + size];
@@ -437,5 +438,22 @@ impl DynamicMessage {
         } else {
             Err(self)
         }
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn assert_send<T: Send>() {}
+    fn assert_sync<T: Sync>() {}
+
+    #[test]
+    fn all_types_are_sync_and_send() {
+        assert_send::<DynamicMessageMetadata>();
+        assert_sync::<DynamicMessageMetadata>();
+        assert_send::<DynamicMessage>();
+        assert_sync::<DynamicMessage>();
     }
 }

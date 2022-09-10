@@ -98,6 +98,7 @@ pub unsafe trait ProxyMut<'msg> {
 pub trait InnerSequence<T: PartialEq>: PartialEq {
     fn as_slice(&self) -> &[T];
     fn as_mut_slice(&mut self) -> &mut [T];
+    // "Unchecked" means that it doesn't know about the upper bound of the sequence.
     fn resize_unchecked(&mut self, resize_function: ResizeFunction, len: usize);
 }
 

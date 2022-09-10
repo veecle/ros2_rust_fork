@@ -1,6 +1,7 @@
 use super::super::MessageStructure;
 use super::{DynamicSequenceElementMut, Proxy, ProxyMut, ProxySequence, Value, ValueMut};
 use std::fmt::{self, Debug};
+use std::ops::Deref;
 
 /// A view of a single message. Used for nested messages.
 ///
@@ -30,6 +31,13 @@ impl<'msg> Debug for DynamicMessageView<'msg> {
             struct_.field(&field.name, &value as &dyn Debug);
         }
         struct_.finish()
+    }
+}
+
+impl<'msg> Deref for DynamicMessageView<'msg> {
+    type Target = MessageStructure;
+    fn deref(&self) -> &Self::Target {
+        self.structure
     }
 }
 
@@ -80,6 +88,14 @@ impl<'msg> Debug for DynamicMessageViewMut<'msg> {
     }
 }
 
+impl<'msg> Deref for DynamicMessageViewMut<'msg> {
+    type Target = MessageStructure;
+    fn deref(&self) -> &Self::Target {
+        self.structure
+    }
+}
+
+
 impl<'msg> DynamicSequenceElementMut<'msg> for DynamicMessageViewMut<'msg> {
     type InnerSequence = ProxySequence<'msg, Self>;
 }
@@ -111,7 +127,7 @@ impl<'msg> DynamicMessageViewMut<'msg> {
     ///
     /// If no field of that name exists, `None` is returned.
     pub fn get_mut(&mut self, field_name: &str) -> Option<ValueMut<'_>> {
-        let field_info = self.structure.get(field_name)?;
+        let field_info = self.structure.get_field_info(field_name)?;
         // The size is None for LongDouble, which has platform-dependent size.
         // It's fine to pass in 1 here – the length of the slice isn't strictly needed
         // by this function, especially not for a LongDouble value.
