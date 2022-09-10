@@ -19,12 +19,15 @@ use crate::error::{to_rclrs_result, RclReturnCode, RclrsError, ToResult};
 use crate::rcl_bindings::*;
 use crate::{ClientBase, Context, ServiceBase, SubscriptionBase};
 
-use std::sync::{Arc, Mutex};
+use std::sync::{atomic::Ordering, Arc, Mutex};
 use std::time::Duration;
 use std::vec::Vec;
 
 mod exclusivity_guard;
 use exclusivity_guard::*;
+
+mod guard_condition;
+use guard_condition::*;
 
 /// A struct for waiting on subscriptions and other waitable entities to become ready.
 pub struct WaitSet {
@@ -36,6 +39,8 @@ pub struct WaitSet {
     // even in the error case.
     subscriptions: Vec<ExclusivityGuard<Arc<dyn SubscriptionBase>>>,
     clients: Vec<ExclusivityGuard<Arc<dyn ClientBase>>>,
+    // The guard conditions that are currently registered in the wait set.
+    guard_conditions: Vec<ExclusivityGuard<Arc<Mutex<GuardCondition>>>>,
     services: Vec<ExclusivityGuard<Arc<dyn ServiceBase>>>,
 }
 
@@ -45,6 +50,8 @@ pub struct ReadyEntities {
     pub subscriptions: Vec<Arc<dyn SubscriptionBase>>,
     /// A list of clients that have potentially received responses.
     pub clients: Vec<Arc<dyn ClientBase>>,
+    /// A list of guard conditions that have potentially been triggered.
+    pub guard_conditions: Vec<Arc<Mutex<GuardCondition>>>,
     /// A list of services that have potentially received requests.
     pub services: Vec<Arc<dyn ServiceBase>>,
 }
@@ -96,6 +103,7 @@ impl WaitSet {
             rcl_wait_set,
             _rcl_context_mtx: context.rcl_context_mtx.clone(),
             subscriptions: Vec::new(),
+            guard_conditions: Vec::new(),
             clients: Vec::new(),
             services: Vec::new(),
         })
@@ -107,6 +115,14 @@ impl WaitSet {
     /// [`WaitSet::new`].
     pub fn clear(&mut self) {
         self.subscriptions.clear();
+        // Guard conditions must be told that they are no longer tied to a wait set
+        self.guard_conditions.drain(..).for_each(|elem| {
+            elem.waitable
+                .lock()
+                .unwrap()
+                .in_use_by_wait_set
+                .store(false, Ordering::Relaxed)
+        });
         self.clients.clear();
         self.services.clear();
         // This cannot fail – the rcl_wait_set_clear function only checks that the input handle is
@@ -147,6 +163,38 @@ impl WaitSet {
         }
         .ok()?;
         self.subscriptions.push(exclusive_subscription);
+        Ok(())
+    }
+
+    /// Adds a guard condition to the wait set.
+    ///
+    /// # Errors
+    /// - If the guard condition was already added to this wait set or another one,
+    ///   [`AlreadyAddedToWaitSet`][1] will be returned
+    /// - If the number of guard condition in the wait set is larger than the
+    ///   capacity set in [`WaitSet::new`], [`WaitSetFull`][2] will be returned
+    ///
+    /// [1]: crate::RclrsError
+    /// [2]: crate::RclReturnCode
+    pub fn add_guard_condition(
+        &mut self,
+        guard_condition: Arc<Mutex<GuardCondition>>,
+    ) -> Result<(), RclrsError> {
+        let exclusive_guard_condition = ExclusivityGuard::new(
+            Arc::clone(&guard_condition),
+            Arc::clone(&guard_condition.lock().unwrap().in_use_by_wait_set),
+        )?;
+
+        unsafe {
+            // SAFETY: Safe if the wait set and guard condition are initialized
+            rcl_wait_set_add_guard_condition(
+                &mut self.rcl_wait_set,
+                &*guard_condition.lock().unwrap().lock(),
+                std::ptr::null_mut(),
+            )
+            .ok()?;
+        }
+        self.guard_conditions.push(exclusive_guard_condition);
         Ok(())
     }
 
@@ -252,6 +300,7 @@ impl WaitSet {
         unsafe { rcl_wait(&mut self.rcl_wait_set, timeout_ns) }.ok()?;
         let mut ready_entities = ReadyEntities {
             subscriptions: Vec::new(),
+            guard_conditions: Vec::new(),
             clients: Vec::new(),
             services: Vec::new(),
         };
@@ -266,6 +315,19 @@ impl WaitSet {
                     .push(Arc::clone(&subscription.waitable));
             }
         }
+
+        for (i, guard_condition) in self.guard_conditions.iter().enumerate() {
+            // SAFETY: The `guard_conditions` entry is an array of pointers, and this dereferencing is
+            // equivalent to
+            // https://github.com/ros2/rcl/blob/35a31b00a12f259d492bf53c0701003bd7f1745c/rcl/include/rcl/wait.h#L419
+            let wait_set_entry = unsafe { *self.rcl_wait_set.guard_conditions.add(i) };
+            if !wait_set_entry.is_null() {
+                ready_entities
+                    .guard_conditions
+                    .push(Arc::clone(&guard_condition.waitable));
+            }
+        }
+
         for (i, client) in self.clients.iter().enumerate() {
             // SAFETY: The `clients` entry is an array of pointers, and this dereferencing is
             // equivalent to
