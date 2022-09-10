@@ -6,5 +6,5 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rclrs = { version = "0.2", features = ["dyn_msg", "serde"] }
+rclrs = { version = "0.2", features = ["dyn_msg"] }
 anyhow = {version = "1", features = ["backtrace"]}

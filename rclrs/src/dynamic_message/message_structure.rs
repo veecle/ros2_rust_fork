@@ -1,6 +1,7 @@
 use crate::rcl_bindings::rosidl_typesupport_introspection_c__MessageMember_s as rosidl_message_member_t;
 use crate::rcl_bindings::rosidl_typesupport_introspection_c__MessageMembers_s as rosidl_message_members_t;
 use crate::rcl_bindings::*;
+use super::TypeErasedSequence;
 
 use std::collections::HashMap;
 use std::ffi::CStr;
@@ -13,7 +14,7 @@ use std::num::NonZeroUsize;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MessageStructure {
     /// The set of fields in the message, indexed by name.
-    pub fields: HashMap<String, MessageFieldType>,
+    pub field_info: HashMap<String, MessageFieldInfo>,
     /// The size of this structure in bytes.
     pub size: usize,
     /// The name of this type.
@@ -21,10 +22,10 @@ pub struct MessageStructure {
 }
 
 impl Index<&str> for MessageStructure {
-    type Output = MessageFieldType;
+    type Output = MessageFieldInfo;
 
     fn index(&self, index: &str) -> &Self::Output {
-        self.fields.index(index)
+        self.field_info.index(index)
     }
 }
 
@@ -37,7 +38,7 @@ impl MessageStructure {
     ) -> Self {
         debug_assert!(!message_members.members_.is_null());
         let num_fields: usize = usize::try_from(message_members.member_count_).unwrap();
-        let fields = (0..num_fields)
+        let field_info = (0..num_fields)
             .map(|i| {
                 // SAFETY: This is an array as per the documentation
                 let rosidl_message_member: &rosidl_message_member_t =
@@ -47,7 +48,7 @@ impl MessageStructure {
                 let name = /*unsafe*/ { CStr::from_ptr(rosidl_message_member.name_) }
                     .to_string_lossy()
                     .into_owned();
-                (name, MessageFieldType::from(rosidl_message_member))
+                (name, MessageFieldInfo::from(rosidl_message_member))
             })
             .collect();
         // SAFETY: Immediate conversion into owned string.
@@ -57,7 +58,7 @@ impl MessageStructure {
                 .into_owned()
         };
         Self {
-            fields,
+            field_info,
             size: message_members.size_of_,
             name,
         }
@@ -66,11 +67,11 @@ impl MessageStructure {
     /// Returns the field names in the order they appear in the message.
     pub fn fields_inorder(&self) -> Vec<String> {
         let mut fields_by_offset: Vec<_> = self
-            .fields
+            .field_info
             .keys()
             .map(String::from)
             .collect();
-        fields_by_offset.sort_by_cached_key(|field_name| self.fields[field_name].offset);
+        fields_by_offset.sort_by_cached_key(|field_name| self.field_info[field_name].offset);
         fields_by_offset
     }
 }
@@ -105,7 +106,7 @@ pub enum ValueKind {
 ///
 /// [1]: crate::dynamic_message::DynamicMessage
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct MessageFieldType {
+pub struct MessageFieldInfo {
     /// The base type – number, string, etc.
     pub base_type: BaseType,
     pub(crate) is_array: bool,
@@ -117,7 +118,7 @@ pub struct MessageFieldType {
     pub(crate) offset: usize,
 }
 
-impl MessageFieldType {
+impl MessageFieldInfo {
     // That function must be unsafe, since it is possible to safely create a garbage non-null
     // pointer and store it in a rosidl_message_member_t.
     unsafe fn from(rosidl_message_member: &rosidl_message_member_t) -> Self {
@@ -137,7 +138,7 @@ impl MessageFieldType {
     }
 }
 
-impl MessageFieldType {
+impl MessageFieldInfo {
     /// Returns whether the field is a simple value, an array, or a (bounded) sequence.
     pub fn value_kind(&self) -> ValueKind {
         match (
@@ -153,6 +154,18 @@ impl MessageFieldType {
             (true, true, true) => ValueKind::BoundedSequence {
                 upper_bound: self.array_size,
             },
+        }
+    }
+
+    /// Returns the size of the field in the message.
+    /// 
+    /// For sequences, it's the size of the sequence struct (ptr + size + capacity),
+    /// not the size that the elements take up in memory.
+    pub(crate) fn size(&self) -> Option<usize> {
+        match self.value_kind() {
+            ValueKind::Simple => self.base_type.size(),
+            ValueKind::Array { length } => self.base_type.size().map(|size| length * size),
+            ValueKind::Sequence | ValueKind::BoundedSequence {..} => Some(std::mem::size_of::<TypeErasedSequence>()),
         }
     }
 }
@@ -233,6 +246,34 @@ impl BaseType {
                 Self::Message(Box::new(structure))
             }
             _ => panic!("Invalid field type"),
+        }
+    }
+
+    /// Returns the size of a single element of this base type.
+    ///
+    /// None is returned for LongDouble, which is of platform-dependent size.
+    pub(crate) fn size(&self) -> Option<usize> {
+        match self {
+            BaseType::Float => Some(4),
+            BaseType::Double => Some(8),
+            BaseType::LongDouble => None,
+            BaseType::Char => Some(1),
+            BaseType::WChar => Some(2),
+            BaseType::Boolean => Some(1),
+            BaseType::Octet => Some(1),
+            BaseType::Uint8 => Some(1),
+            BaseType::Int8 => Some(1),
+            BaseType::Uint16 => Some(2),
+            BaseType::Int16 => Some(2),
+            BaseType::Uint32 => Some(4),
+            BaseType::Int32 => Some(4),
+            BaseType::Uint64 => Some(8),
+            BaseType::Int64 => Some(8),
+            BaseType::String => Some(std::mem::size_of::<rosidl_runtime_rs::String>()),
+            BaseType::BoundedString { .. } => Some(std::mem::size_of::<rosidl_runtime_rs::String>()),
+            BaseType::WString => Some(std::mem::size_of::<rosidl_runtime_rs::WString>()),
+            BaseType::BoundedWString { .. } => Some(std::mem::size_of::<rosidl_runtime_rs::WString>()),
+            BaseType::Message(structure) => Some(structure.size),
         }
     }
 }

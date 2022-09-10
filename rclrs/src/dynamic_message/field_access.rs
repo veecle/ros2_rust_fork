@@ -1,4 +1,4 @@
-use super::{BaseType, MessageFieldType, MessageStructure, ValueKind};
+use super::{BaseType, MessageFieldInfo, MessageStructure, ValueKind};
 
 use rosidl_runtime_rs::Sequence;
 
@@ -222,9 +222,9 @@ macro_rules! define_value_types {
         impl<'msg> SimpleValue<'msg> {
             pub(super) unsafe fn new(
                 bytes: $make_ref!('msg, [u8]),
-                field: &'msg MessageFieldType,
+                field_info: &'msg MessageFieldInfo,
             ) -> Self {
-                match &field.base_type {
+                match &field_info.base_type {
                     BaseType::Float => SimpleValue::Float(reinterpret::<f32>(bytes)),
                     BaseType::Double => SimpleValue::Double(reinterpret::<f64>(bytes)),
                     BaseType::LongDouble => SimpleValue::LongDouble($select!(
@@ -289,71 +289,71 @@ macro_rules! define_value_types {
         impl<'msg> ArrayValue<'msg> {
             pub(super) unsafe fn new(
                 bytes: $make_ref!('msg, [u8]),
-                field: &'msg MessageFieldType,
+                field_info: &'msg MessageFieldInfo,
             ) -> Self {
-                match &field.base_type {
+                match &field_info.base_type {
                     BaseType::Float => {
-                        ArrayValue::FloatArray(reinterpret_array::<f32>(bytes, field.array_size))
+                        ArrayValue::FloatArray(reinterpret_array::<f32>(bytes, field_info.array_size))
                     }
                     BaseType::Double => {
-                        ArrayValue::DoubleArray(reinterpret_array::<f64>(bytes, field.array_size))
+                        ArrayValue::DoubleArray(reinterpret_array::<f64>(bytes, field_info.array_size))
                     }
                     BaseType::LongDouble => {
                         ArrayValue::LongDoubleArray($select!(
                             immutable => bytes.as_ptr(),
                             mutable => bytes.as_mut_ptr()
-                        ), field.array_size)
+                        ), field_info.array_size)
                     }
                     BaseType::Char => {
-                        ArrayValue::CharArray(reinterpret_array::<u8>(bytes, field.array_size))
+                        ArrayValue::CharArray(reinterpret_array::<u8>(bytes, field_info.array_size))
                     }
                     BaseType::WChar => {
-                        ArrayValue::WCharArray(reinterpret_array::<u16>(bytes, field.array_size))
+                        ArrayValue::WCharArray(reinterpret_array::<u16>(bytes, field_info.array_size))
                     }
                     BaseType::Boolean => {
                         assert!(bytes[0] <= 1);
                         ArrayValue::BooleanArray(reinterpret_array::<bool>(
                             bytes,
-                            field.array_size,
+                            field_info.array_size,
                         ))
                     }
                     BaseType::Octet => {
-                        ArrayValue::OctetArray(reinterpret_array::<u8>(bytes, field.array_size))
+                        ArrayValue::OctetArray(reinterpret_array::<u8>(bytes, field_info.array_size))
                     }
                     BaseType::Uint8 => {
-                        ArrayValue::Uint8Array(reinterpret_array::<u8>(bytes, field.array_size))
+                        ArrayValue::Uint8Array(reinterpret_array::<u8>(bytes, field_info.array_size))
                     }
                     BaseType::Int8 => {
-                        ArrayValue::Int8Array(reinterpret_array::<i8>(bytes, field.array_size))
+                        ArrayValue::Int8Array(reinterpret_array::<i8>(bytes, field_info.array_size))
                     }
                     BaseType::Uint16 => {
-                        ArrayValue::Uint16Array(reinterpret_array::<u16>(bytes, field.array_size))
+                        ArrayValue::Uint16Array(reinterpret_array::<u16>(bytes, field_info.array_size))
                     }
                     BaseType::Int16 => {
-                        ArrayValue::Int16Array(reinterpret_array::<i16>(bytes, field.array_size))
+                        ArrayValue::Int16Array(reinterpret_array::<i16>(bytes, field_info.array_size))
                     }
                     BaseType::Uint32 => {
-                        ArrayValue::Uint32Array(reinterpret_array::<u32>(bytes, field.array_size))
+                        ArrayValue::Uint32Array(reinterpret_array::<u32>(bytes, field_info.array_size))
                     }
                     BaseType::Int32 => {
-                        ArrayValue::Int32Array(reinterpret_array::<i32>(bytes, field.array_size))
+                        ArrayValue::Int32Array(reinterpret_array::<i32>(bytes, field_info.array_size))
                     }
                     BaseType::Uint64 => {
-                        ArrayValue::Uint64Array(reinterpret_array::<u64>(bytes, field.array_size))
+                        ArrayValue::Uint64Array(reinterpret_array::<u64>(bytes, field_info.array_size))
                     }
                     BaseType::Int64 => {
-                        ArrayValue::Int64Array(reinterpret_array::<i64>(bytes, field.array_size))
+                        ArrayValue::Int64Array(reinterpret_array::<i64>(bytes, field_info.array_size))
                     }
                     BaseType::String => {
                         ArrayValue::StringArray(reinterpret_array::<rosidl_runtime_rs::String>(
                             bytes,
-                            field.array_size,
+                            field_info.array_size,
                         ))
                     }
                     BaseType::BoundedString { upper_bound } => {
                         let slice = reinterpret_array::<rosidl_runtime_rs::String>(
                             bytes,
-                            field.array_size,
+                            field_info.array_size,
                         );
                         let dynamic_bounded_strings: Vec<_> = slice
                             .into_iter()
@@ -375,13 +375,13 @@ macro_rules! define_value_types {
                     BaseType::WString => {
                         ArrayValue::WStringArray(reinterpret_array::<rosidl_runtime_rs::WString>(
                             bytes,
-                            field.array_size,
+                            field_info.array_size,
                         ))
                     }
                     BaseType::BoundedWString { upper_bound } => {
                         let slice = reinterpret_array::<rosidl_runtime_rs::WString>(
                             bytes,
-                            field.array_size,
+                            field_info.array_size,
                         );
                         let dynamic_bounded_wstrings: Vec<_> = slice
                             .into_iter()
@@ -403,14 +403,14 @@ macro_rules! define_value_types {
                     BaseType::Message(structure) => {
                         let messages: Vec<_> = $select!(
                             immutable => bytes.chunks(structure.size)
-                                .take(field.array_size)
+                                .take(field_info.array_size)
                                 .map(|chunk| DynamicMessageView  {
                                         storage: chunk,
                                         structure: &*structure,
                                 })
                                 .collect(),
                             mutable => bytes.chunks_mut(structure.size)
-                                .take(field.array_size)
+                                .take(field_info.array_size)
                                 .map(|chunk| DynamicMessageViewMut  {
                                         storage: chunk,
                                         structure: &*structure,
@@ -426,10 +426,10 @@ macro_rules! define_value_types {
         impl<'msg> SequenceValue<'msg> {
             pub(super) unsafe fn new(
                 bytes: $make_ref!('msg, [u8]),
-                field: &'msg MessageFieldType,
+                field_info: &'msg MessageFieldInfo,
             ) -> Self {
-                assert_eq!(field.array_size, 0);
-                match &field.base_type {
+                assert_eq!(field_info.array_size, 0);
+                match &field_info.base_type {
                     BaseType::Float => {
                         SequenceValue::FloatSequence(reinterpret::<Sequence<f32>>(bytes))
                     }
@@ -493,7 +493,7 @@ macro_rules! define_value_types {
                                 mutable => DynamicSequenceMut::new_proxy(
                                     bytes,
                                     *upper_bound,
-                                    field.resize_function.unwrap(),
+                                    field_info.resize_function.unwrap(),
                                 )
                             )
                         )
@@ -515,7 +515,7 @@ macro_rules! define_value_types {
                                 mutable => DynamicSequenceMut::new_proxy(
                                     bytes,
                                     *upper_bound,
-                                    field.resize_function.unwrap(),
+                                    field_info.resize_function.unwrap(),
                                 )
                             )
                         )
@@ -531,7 +531,7 @@ macro_rules! define_value_types {
                             mutable => DynamicSequenceMut::new_proxy(
                                 bytes,
                                 &**structure,
-                                field.resize_function.unwrap()
+                                field_info.resize_function.unwrap()
                             )
                         ))
                     }
@@ -542,21 +542,21 @@ macro_rules! define_value_types {
         impl<'msg> BoundedSequenceValue<'msg> {
             pub(super) unsafe fn new(
                 bytes: $make_ref!('msg, [u8]),
-                field: &'msg MessageFieldType,
+                field_info: &'msg MessageFieldInfo,
             ) -> Self {
-                match &field.base_type {
+                match &field_info.base_type {
                     BaseType::Float => {
                         BoundedSequenceValue::FloatBoundedSequence($select!(
                             immutable => {
                                 DynamicBoundedSequence::new_primitive(
                                     bytes,
-                                    field.array_size
+                                    field_info.array_size
                                 )
                             },
                             mutable => DynamicBoundedSequenceMut::new_primitive(
                                 bytes,
-                                field.array_size,
-                                field.resize_function.unwrap(),
+                                field_info.array_size,
+                                field_info.resize_function.unwrap(),
                             )
                         ))
                     }
@@ -565,13 +565,13 @@ macro_rules! define_value_types {
                             immutable => {
                                 DynamicBoundedSequence::new_primitive(
                                     bytes,
-                                    field.array_size
+                                    field_info.array_size
                                 )
                             },
                             mutable => DynamicBoundedSequenceMut::new_primitive(
                                 bytes,
-                                field.array_size,
-                                field.resize_function.unwrap(),
+                                field_info.array_size,
+                                field_info.resize_function.unwrap(),
                             )
                         ))
                     }
@@ -580,20 +580,20 @@ macro_rules! define_value_types {
                             immutable => bytes.as_ptr(),
                             mutable => bytes.as_mut_ptr()
                         ),
-                        field.array_size,
+                        field_info.array_size,
                     ),
                     BaseType::Char => {
                         BoundedSequenceValue::CharBoundedSequence($select!(
                             immutable => {
                                 DynamicBoundedSequence::new_primitive(
                                     bytes,
-                                    field.array_size
+                                    field_info.array_size
                                 )
                             },
                             mutable => DynamicBoundedSequenceMut::new_primitive(
                                 bytes,
-                                field.array_size,
-                                field.resize_function.unwrap(),
+                                field_info.array_size,
+                                field_info.resize_function.unwrap(),
                             )
                         ))
                     }
@@ -602,13 +602,13 @@ macro_rules! define_value_types {
                             immutable => {
                                 DynamicBoundedSequence::new_primitive(
                                     bytes,
-                                    field.array_size
+                                    field_info.array_size
                                 )
                             },
                             mutable => DynamicBoundedSequenceMut::new_primitive(
                                 bytes,
-                                field.array_size,
-                                field.resize_function.unwrap(),
+                                field_info.array_size,
+                                field_info.resize_function.unwrap(),
                             )
                         ))
                     }
@@ -617,13 +617,13 @@ macro_rules! define_value_types {
                             immutable => {
                                 DynamicBoundedSequence::new_primitive(
                                     bytes,
-                                    field.array_size
+                                    field_info.array_size
                                 )
                             },
                             mutable => DynamicBoundedSequenceMut::new_primitive(
                                 bytes,
-                                field.array_size,
-                                field.resize_function.unwrap(),
+                                field_info.array_size,
+                                field_info.resize_function.unwrap(),
                             )
                         ))
                     }
@@ -632,13 +632,13 @@ macro_rules! define_value_types {
                             immutable => {
                                 DynamicBoundedSequence::new_primitive(
                                     bytes,
-                                    field.array_size
+                                    field_info.array_size
                                 )
                             },
                             mutable => DynamicBoundedSequenceMut::new_primitive(
                                 bytes,
-                                field.array_size,
-                                field.resize_function.unwrap(),
+                                field_info.array_size,
+                                field_info.resize_function.unwrap(),
                             )
                         ))
                     }
@@ -647,13 +647,13 @@ macro_rules! define_value_types {
                             immutable => {
                                 DynamicBoundedSequence::new_primitive(
                                     bytes,
-                                    field.array_size
+                                    field_info.array_size
                                 )
                             },
                             mutable => DynamicBoundedSequenceMut::new_primitive(
                                 bytes,
-                                field.array_size,
-                                field.resize_function.unwrap(),
+                                field_info.array_size,
+                                field_info.resize_function.unwrap(),
                             )
                         ))
                     }
@@ -662,13 +662,13 @@ macro_rules! define_value_types {
                             immutable => {
                                 DynamicBoundedSequence::new_primitive(
                                     bytes,
-                                    field.array_size
+                                    field_info.array_size
                                 )
                             },
                             mutable => DynamicBoundedSequenceMut::new_primitive(
                                 bytes,
-                                field.array_size,
-                                field.resize_function.unwrap(),
+                                field_info.array_size,
+                                field_info.resize_function.unwrap(),
                             )
                         ))
                     }
@@ -677,13 +677,13 @@ macro_rules! define_value_types {
                             immutable => {
                                 DynamicBoundedSequence::new_primitive(
                                     bytes,
-                                    field.array_size
+                                    field_info.array_size
                                 )
                             },
                             mutable => DynamicBoundedSequenceMut::new_primitive(
                                 bytes,
-                                field.array_size,
-                                field.resize_function.unwrap(),
+                                field_info.array_size,
+                                field_info.resize_function.unwrap(),
                             )
                         ))
                     }
@@ -692,13 +692,13 @@ macro_rules! define_value_types {
                             immutable => {
                                 DynamicBoundedSequence::new_primitive(
                                     bytes,
-                                    field.array_size
+                                    field_info.array_size
                                 )
                             },
                             mutable => DynamicBoundedSequenceMut::new_primitive(
                                 bytes,
-                                field.array_size,
-                                field.resize_function.unwrap(),
+                                field_info.array_size,
+                                field_info.resize_function.unwrap(),
                             )
                         ))
                     }
@@ -707,13 +707,13 @@ macro_rules! define_value_types {
                             immutable => {
                                 DynamicBoundedSequence::new_primitive(
                                     bytes,
-                                    field.array_size
+                                    field_info.array_size
                                 )
                             },
                             mutable => DynamicBoundedSequenceMut::new_primitive(
                                 bytes,
-                                field.array_size,
-                                field.resize_function.unwrap(),
+                                field_info.array_size,
+                                field_info.resize_function.unwrap(),
                             )
                         ))
                     }
@@ -722,13 +722,13 @@ macro_rules! define_value_types {
                             immutable => {
                                 DynamicBoundedSequence::new_primitive(
                                     bytes,
-                                    field.array_size
+                                    field_info.array_size
                                 )
                             },
                             mutable => DynamicBoundedSequenceMut::new_primitive(
                                 bytes,
-                                field.array_size,
-                                field.resize_function.unwrap(),
+                                field_info.array_size,
+                                field_info.resize_function.unwrap(),
                             )
                         ))
                     }
@@ -737,13 +737,13 @@ macro_rules! define_value_types {
                             immutable => {
                                 DynamicBoundedSequence::new_primitive(
                                     bytes,
-                                    field.array_size
+                                    field_info.array_size
                                 )
                             },
                             mutable => DynamicBoundedSequenceMut::new_primitive(
                                 bytes,
-                                field.array_size,
-                                field.resize_function.unwrap(),
+                                field_info.array_size,
+                                field_info.resize_function.unwrap(),
                             )
                         ))
                     }
@@ -752,13 +752,13 @@ macro_rules! define_value_types {
                             immutable => {
                                 DynamicBoundedSequence::new_primitive(
                                     bytes,
-                                    field.array_size
+                                    field_info.array_size
                                 )
                             },
                             mutable => DynamicBoundedSequenceMut::new_primitive(
                                 bytes,
-                                field.array_size,
-                                field.resize_function.unwrap(),
+                                field_info.array_size,
+                                field_info.resize_function.unwrap(),
                             )
                         ))
                     }
@@ -767,24 +767,24 @@ macro_rules! define_value_types {
                             immutable => {
                                 DynamicBoundedSequence::new_primitive(
                                     bytes,
-                                    field.array_size
+                                    field_info.array_size
                                 )
                             },
                             mutable => DynamicBoundedSequenceMut::new_primitive(
                                 bytes,
-                                field.array_size,
-                                field.resize_function.unwrap()
+                                field_info.array_size,
+                                field_info.resize_function.unwrap()
                             )
                         ))
                     }
                     BaseType::BoundedString { upper_bound } => {
                         BoundedSequenceValue::BoundedStringBoundedSequence($select!(
-                            immutable => { DynamicBoundedSequence::new_proxy(bytes, field.array_size, *upper_bound) },
+                            immutable => { DynamicBoundedSequence::new_proxy(bytes, field_info.array_size, *upper_bound) },
                             mutable => DynamicBoundedSequenceMut::new_proxy(
                                 bytes,
                                 *upper_bound,
-                                field.array_size,
-                                field.resize_function.unwrap()
+                                field_info.array_size,
+                                field_info.resize_function.unwrap()
                             )
                         ))
                     }
@@ -793,36 +793,36 @@ macro_rules! define_value_types {
                             immutable => {
                                 DynamicBoundedSequence::new_primitive(
                                     bytes,
-                                    field.array_size
+                                    field_info.array_size
                                 )
                             },
                             mutable => DynamicBoundedSequenceMut::new_primitive(
                                 bytes,
-                                field.array_size,
-                                field.resize_function.unwrap()
+                                field_info.array_size,
+                                field_info.resize_function.unwrap()
                             )
                         ))
                     }
                     BaseType::BoundedWString { upper_bound } => {
                         BoundedSequenceValue::BoundedWStringBoundedSequence($select!(
-                            immutable => { DynamicBoundedSequence::new_proxy(bytes, field.array_size, *upper_bound) },
+                            immutable => { DynamicBoundedSequence::new_proxy(bytes, field_info.array_size, *upper_bound) },
                             mutable => DynamicBoundedSequenceMut::new_proxy(
                                 bytes,
                                 *upper_bound,
-                                field.array_size,
-                                field.resize_function.unwrap()
+                                field_info.array_size,
+                                field_info.resize_function.unwrap()
                             )
                         ))
                     }
                     BaseType::Message(structure) => BoundedSequenceValue::MessageBoundedSequence($select!(
                         immutable => {
-                            DynamicBoundedSequence::new_proxy(bytes, field.array_size, &**structure)
+                            DynamicBoundedSequence::new_proxy(bytes, field_info.array_size, &**structure)
                         },
                         mutable => DynamicBoundedSequenceMut::new_proxy(
                             bytes,
                             &**structure,
-                            field.array_size,
-                            field.resize_function.unwrap(),
+                            field_info.array_size,
+                            field_info.resize_function.unwrap(),
                         )
                     )),
                 }
@@ -919,14 +919,14 @@ impl<'msg> Value<'msg> {
         structure: &'msg MessageStructure,
         field_name: &str,
     ) -> Option<Value<'msg>> {
-        let field = structure.fields.get(field_name)?;
-        let bytes = &storage[field.offset..];
-        Some(match field.value_kind() {
-            ValueKind::Simple => Value::Simple(SimpleValue::new(bytes, field)),
-            ValueKind::Array { .. } => Value::Array(ArrayValue::new(bytes, field)),
-            ValueKind::Sequence => Value::Sequence(SequenceValue::new(bytes, field)),
+        let field_info = structure.fields.get(field_name)?;
+        let bytes = &storage[field_info.offset..];
+        Some(match field_info.value_kind() {
+            ValueKind::Simple => Value::Simple(SimpleValue::new(bytes, field_info)),
+            ValueKind::Array { .. } => Value::Array(ArrayValue::new(bytes, field_info)),
+            ValueKind::Sequence => Value::Sequence(SequenceValue::new(bytes, field_info)),
             ValueKind::BoundedSequence { .. } => {
-                Value::BoundedSequence(BoundedSequenceValue::new(bytes, field))
+                Value::BoundedSequence(BoundedSequenceValue::new(bytes, field_info))
             }
         })
     }
@@ -987,19 +987,16 @@ pub enum ValueMut<'msg> {
 
 impl<'msg> ValueMut<'msg> {
     pub(crate) unsafe fn new(
-        storage: &'msg mut [u8],
-        structure: &'msg MessageStructure,
-        field_name: &str,
-    ) -> Option<ValueMut<'msg>> {
-        let field = structure.fields.get(field_name)?;
-        let bytes = &mut storage[field.offset..];
-        Some(match field.value_kind() {
-            ValueKind::Simple => ValueMut::Simple(SimpleValueMut::new(bytes, field)),
-            ValueKind::Array { .. } => ValueMut::Array(ArrayValueMut::new(bytes, field)),
-            ValueKind::Sequence => ValueMut::Sequence(SequenceValueMut::new(bytes, field)),
+        value_bytes: &'msg mut [u8],
+        field_info: &'msg MessageFieldInfo,
+    ) -> ValueMut<'msg> {
+        match field_info.value_kind() {
+            ValueKind::Simple => ValueMut::Simple(SimpleValueMut::new(value_bytes, field_info)),
+            ValueKind::Array { .. } => ValueMut::Array(ArrayValueMut::new(value_bytes, field_info)),
+            ValueKind::Sequence => ValueMut::Sequence(SequenceValueMut::new(value_bytes, field_info)),
             ValueKind::BoundedSequence { .. } => {
-                ValueMut::BoundedSequence(BoundedSequenceValueMut::new(bytes, field))
+                ValueMut::BoundedSequence(BoundedSequenceValueMut::new(value_bytes, field_info))
             }
-        })
+        }
     }
 }
