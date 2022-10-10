@@ -143,8 +143,14 @@ pub trait Message: Clone + Debug + Default + 'static + Send + Sync {
     /// This is why the return type is also `Cow`.
     fn into_rmw_message(msg_cow: Cow<'_, Self>) -> Cow<'_, Self::RmwMsg>;
 
+    /// Converts the boxed idiomatic message into a boxed RMW-native message.
+    fn into_rmw_message_boxed(msg_cow: Cow<'_, Box<Self>>) -> Cow<'_, Box<Self::RmwMsg>>;
+
     /// Converts the RMW-native message into an idiomatic message.
     fn from_rmw_message(msg: Self::RmwMsg) -> Self;
+
+    /// Converts the boxed RMW-native message into a boxed idiomatic message.
+    fn from_rmw_message_boxed(msg: Box<Self::RmwMsg>) -> Box<Self>;
 }
 
 /// Trait for services.

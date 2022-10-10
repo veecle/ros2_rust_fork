@@ -98,7 +98,9 @@ impl rosidl_runtime_rs::SequenceAlloc for @(type_name) {
 impl rosidl_runtime_rs::Message for @(type_name) {
   type RmwMsg = Self;
   fn into_rmw_message(msg_cow: std::borrow::Cow<'_, Self>) -> std::borrow::Cow<'_, Self::RmwMsg> { msg_cow }
+  fn into_rmw_message_boxed(msg_cow: std::borrow::Cow<'_, Box<Self>>) -> std::borrow::Cow<'_, Box<Self::RmwMsg>> { msg_cow }
   fn from_rmw_message(msg: Self::RmwMsg) -> Self { msg }
+  fn from_rmw_message_boxed(msg: Box<Self::RmwMsg>) -> Box<Self> { msg }
 }
 
 impl rosidl_runtime_rs::RmwMessage for @(type_name) where Self: Sized {

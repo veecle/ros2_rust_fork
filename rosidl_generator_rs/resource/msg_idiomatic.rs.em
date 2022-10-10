@@ -61,6 +61,10 @@ impl Default for @(type_name) {
   }
 }
 
+fn from_rmw_message_ptr(rmw_msg: *const crate::@(subfolder)::rmw::@(type_name), msg: *mut @(type_name)) {
+  
+}
+
 impl rosidl_runtime_rs::Message for @(type_name) {
   type RmwMsg = crate::@(subfolder)::rmw::@(type_name);
 
@@ -186,6 +190,11 @@ impl rosidl_runtime_rs::Message for @(type_name) {
     }
   }
 
+  fn into_rmw_message_boxed(msg_cow: Cow<'_, Box<Self>>) -> Cow<'_, Box<Self::RmwMsg>> {
+    todo!()
+  }
+
+
   fn from_rmw_message(msg: Self::RmwMsg) -> Self {
     Self {
 @[for member in msg_spec.structure.members]@
@@ -232,6 +241,13 @@ impl rosidl_runtime_rs::Message for @(type_name) {
 @[    end if]@
 @[end for]@
     }
+  }
+
+  fn from_rmw_message_boxed(msg: Box<Self::RmwMsg>) -> Box<Self> {
+    use std::alloc::{alloc, Layout};
+    use std::ptr::addr_of_mut;
+    let this = alloc(Layout::new::<Self>()) as *mut Self;
+    todo!()
   }
 }
 
