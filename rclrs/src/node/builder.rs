@@ -3,8 +3,8 @@ use std::sync::{Arc, Mutex};
 
 use crate::rcl_bindings::*;
 use crate::{
-    node::call_string_getter_with_handle, resolve_parameter_overrides, Context, Node, RclrsError,
-    ToResult,
+    node::call_string_getter_with_handle, resolve_parameter_overrides, Context, Node,
+    NodeParameters, ParameterService, RclrsError, ToResult,
 };
 
 /// A builder for creating a [`Node`][1].
@@ -262,24 +262,27 @@ impl NodeBuilder {
             .ok()?;
         };
 
-        let _parameter_map = unsafe {
+        let _node_parameters_mtx = unsafe {
             let fqn = call_string_getter_with_handle(&rcl_node, rcl_node_get_fully_qualified_name);
-            resolve_parameter_overrides(
+            let parameter_overrides = resolve_parameter_overrides(
                 &fqn,
                 &rcl_node_options.arguments,
                 &rcl_context.global_arguments,
-            )?
+            )?;
+            Arc::new(Mutex::new(NodeParameters::new(parameter_overrides)))
         };
         let rcl_node_mtx = Arc::new(Mutex::new(rcl_node));
-
+        let _parameter_service =
+            ParameterService::new(Arc::clone(&rcl_node_mtx), Arc::clone(&_node_parameters_mtx))?;
         Ok(Node {
             rcl_node_mtx,
             rcl_context_mtx: self.context.clone(),
             clients: vec![],
             guard_conditions: vec![],
-            services: vec![],
+            services: _parameter_service.services(),
             subscriptions: vec![],
-            _parameter_map,
+            _node_parameters_mtx,
+            _parameter_service,
         })
     }
 

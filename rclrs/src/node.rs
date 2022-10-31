@@ -13,9 +13,9 @@ pub use self::builder::*;
 pub use self::graph::*;
 use crate::rcl_bindings::*;
 use crate::{
-    Client, ClientBase, Context, GuardCondition, ParameterOverrideMap, Publisher, QoSProfile,
-    RclrsError, Service, ServiceBase, Subscription, SubscriptionBase, SubscriptionCallback,
-    ToResult,
+    Client, ClientBase, Context, GuardCondition, NodeParameters, ParameterService, Publisher,
+    QoSProfile, RclrsError, Service, ServiceBase, Subscription, SubscriptionBase,
+    SubscriptionCallback, ToResult,
 };
 
 impl Drop for rcl_node_t {
@@ -71,7 +71,8 @@ pub struct Node {
     pub(crate) guard_conditions: Vec<Weak<GuardCondition>>,
     pub(crate) services: Vec<Weak<dyn ServiceBase>>,
     pub(crate) subscriptions: Vec<Weak<dyn SubscriptionBase>>,
-    _parameter_map: ParameterOverrideMap,
+    _node_parameters_mtx: Arc<Mutex<NodeParameters>>,
+    _parameter_service: ParameterService,
 }
 
 impl Eq for Node {}
