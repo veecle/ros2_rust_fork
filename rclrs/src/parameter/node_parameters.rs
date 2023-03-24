@@ -12,6 +12,17 @@ pub enum ParameterError {
 
 }
 
+// RCLCPP_PUBLIC
+// virtual
+// const rclcpp::ParameterValue &
+// declare_parameter(
+// const std::string & name,
+// const rclcpp::ParameterValue & default_value,
+// const rcl_interfaces::msg::ParameterDescriptor & parameter_descriptor =
+// rcl_interfaces::msg::ParameterDescriptor(),
+// bool ignore_override = false) = 0;
+
+
 // What when a set_parameter service call arrives before a parameter is declared? => If allow_undeclared_parameters
 // Do we want to replicate the behavior of get_parameter() to return an empty rclcpp::Parameter{name} if allow_undeclared?
 // Would it be fair to say that the parameters = a map with defaults for some values (= overrides)?

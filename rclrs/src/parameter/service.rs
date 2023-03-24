@@ -28,7 +28,9 @@ impl ParameterService {
             "describe_parameters",
             |req_id: &rmw_request_id_t, req: DescribeParameters_Request| {
                 DescribeParameters_Response {
-                    descriptors: seq![],
+                    descriptors: seq![
+                        //ParameterDescriptor {}
+                    ],
                 }
             },
         )?;
