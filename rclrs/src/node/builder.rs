@@ -3,8 +3,9 @@ use std::sync::{Arc, Mutex};
 
 use crate::rcl_bindings::*;
 use crate::{
-    node::call_string_getter_with_handle, resolve_parameter_overrides, Context, Node,
-    NodeParameters, ParameterService, RclrsError, ToResult,
+    node::call_string_getter_with_handle, resolve_parameter_overrides,
+    AutomaticallyDeclareParametersFromOverrides, Context, Node, NodeParameters, ParameterService,
+    RclrsError, ToResult,
 };
 
 /// A builder for creating a [`Node`][1].
@@ -17,6 +18,8 @@ use crate::{
 /// - `use_global_arguments: true`
 /// - `arguments: []`
 /// - `enable_rosout: true`
+/// - `allow_set_parameters_service_to_declare_parameters: false`,
+/// - `automatically_declare_parameters_from_overrides: No`,
 ///
 /// # Example
 /// ```
@@ -46,6 +49,8 @@ pub struct NodeBuilder {
     use_global_arguments: bool,
     arguments: Vec<String>,
     enable_rosout: bool,
+    allow_set_parameters_service_to_declare_parameters: bool,
+    automatically_declare_parameters_from_overrides: AutomaticallyDeclareParametersFromOverrides,
 }
 
 impl NodeBuilder {
@@ -92,6 +97,9 @@ impl NodeBuilder {
             use_global_arguments: true,
             arguments: vec![],
             enable_rosout: true,
+            allow_set_parameters_service_to_declare_parameters: false,
+            automatically_declare_parameters_from_overrides:
+                AutomaticallyDeclareParametersFromOverrides::No,
         }
     }
 
@@ -269,7 +277,11 @@ impl NodeBuilder {
                 &rcl_node_options.arguments,
                 &rcl_context.global_arguments,
             )?;
-            Arc::new(Mutex::new(NodeParameters::new(parameter_overrides)))
+            Arc::new(Mutex::new(NodeParameters::new(
+                parameter_overrides,
+                self.automatically_declare_parameters_from_overrides,
+                self.allow_set_parameters_service_to_declare_parameters,
+            )))
         };
         let rcl_node_mtx = Arc::new(Mutex::new(rcl_node));
         let _parameter_service =
