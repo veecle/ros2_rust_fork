@@ -13,8 +13,9 @@ pub use self::builder::*;
 pub use self::graph::*;
 use crate::rcl_bindings::*;
 use crate::{
-    ActionClient, Client, ClientBase, Context, GuardCondition, ParameterOverrideMap, Publisher,
-    QoSProfile, RclrsError, Service, ServiceBase, Subscription, SubscriptionBase,
+    ActionClient, ActionServer, CancelResponse, Client, ClientBase, Context,
+    GoalResponse, GoalUUID, GuardCondition, ParameterOverrideMap, Publisher, QoSProfile,
+    RclrsError, ServerGoalHandle, Service, ServiceBase, Subscription, SubscriptionBase,
     SubscriptionCallback, ToResult,
 };
 
@@ -189,7 +190,7 @@ impl Node {
         Ok(client)
     }
 
-    /// Creates a [`Client`][1].
+    /// Creates an [`ActionClient`][1].
     ///
     /// [1]: crate::ActionClient
     // TODO: make action client's lifetime depend on node's lifetime
@@ -200,13 +201,36 @@ impl Node {
     where
         T: rosidl_runtime_rs::Action,
     {
-        let client = Arc::new(ActionClient::<T>::new(
+        let action_client = Arc::new(ActionClient::<T>::new(
             Arc::clone(&self.rcl_node_mtx),
             topic,
         )?);
         // self.clients
         //     .push(Arc::downgrade(&client) as Weak<dyn ClientBase>);
-        Ok(client)
+        Ok(action_client)
+    }
+
+    /// Creates an [`ActionServer`][1].
+    ///
+    /// [1]: crate::ActionServer
+    // TODO: make action server's lifetime depend on node's lifetime
+    pub fn create_action_server<T>(
+        &mut self,
+        topic: &str,
+        handle_goal: fn(&crate::action::GoalUUID, Arc<T::Goal>) -> GoalResponse,
+        handle_cancel: fn(Arc<ServerGoalHandle<T>>) -> CancelResponse,
+        handle_accepted: fn(Arc<ServerGoalHandle<T>>),
+    ) -> Result<Arc<ActionServer<T>>, RclrsError>
+    where
+        T: rosidl_runtime_rs::Action,
+    {
+        let action_server = Arc::new(ActionServer::<T>::new(
+            Arc::clone(&self.rcl_node_mtx),
+            topic,
+        )?);
+        // self.servers
+        //     .push(Arc::downgrade(&server) as Weak<dyn ClientBase>);
+        Ok(action_server)
     }
 
     /// Creates a [`GuardCondition`][1] with no callback.
