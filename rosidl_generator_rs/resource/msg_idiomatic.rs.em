@@ -54,6 +54,7 @@ comments = getattr(constant, 'get_comment_lines', lambda: [])()
 }
 @[end if]
 
+#[cfg(not(feature = "no_middleware"))]
 impl Default for @(type_name) {
   fn default() -> Self {
 @#  This has the benefit of automatically setting the right default values
@@ -61,6 +62,7 @@ impl Default for @(type_name) {
   }
 }
 
+#[cfg(not(feature = "no_middleware"))]
 impl rosidl_runtime_rs::Message for @(type_name) {
   type RmwMsg = crate::@(subfolder)::rmw::@(type_name);
 

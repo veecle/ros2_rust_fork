@@ -1,3 +1,4 @@
+#[cfg(not(feature = "no_middleware"))]
 pub mod rmw {
 @{
 TEMPLATE(

@@ -18,3 +18,5 @@ for dep in dependency_packages:
 	serde_features.append("{}/serde".format(dep))
 }@
 serde = @(serde_features)
+# Enable to prevent linking against the ROS middleware
+no_middleware = []
