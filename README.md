@@ -1,6 +1,29 @@
 ROS 2 for Rust
 ==============
 
+# Veecle section
+This is a fork from ros2_rust. This repository is modified to provide a better dockerfile that also fulfill the following purposes
+1. Building the rust crates, to be served for developing rust code in android automotive, compatible with ROS
+2. Building the rust application that connects ROS with AAOS
+3. Running the rust application together with a playback of recorded ROS messages
+
+## Building the image
+Build the Docker image with
+
+```shell
+# Make sure to run this in the workspace directory
+# ROS_DISTRO can be humble|iron|rolling
+docker build --build-arg "ROS_DISTRO=humble" -t ros2_rust_dev .
+```
+
+and then run it with
+
+```shell
+# Make sure to run this in the workspace directory
+docker run --rm -it --volume $(pwd):/workspace ros2_rust_dev /bin/bash
+```
+
+# Original README
 | Target | Status |
 |----------|--------|
 | **Ubuntu 20.04** | [![Build Status](https://github.com/ros2-rust/ros2_rust/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/ros2-rust/ros2_rust/actions/workflows/rust.yml?branch=main) |

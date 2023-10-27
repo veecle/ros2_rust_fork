@@ -22,4 +22,10 @@ RUN pip install --upgrade pytest
 RUN pip install git+https://github.com/colcon/colcon-cargo.git git+https://github.com/colcon/colcon-ros-cargo.git
 
 RUN mkdir -p /workspace && echo "Did you forget to mount the repository into the Docker container?" > /workspace/HELLO.txt
+RUN mkdir /r2r
+COPY . /r2r/ros2_rust
+RUN cd /r2r && vcs import . < ros2_rust/ros2_rust_humble.repos
+RUN . /opt/ros/humble/setup.sh && cd /r2r && colcon build
+RUN mv /r2r/ros2_rust/docker_entry.sh / && chmod 700 /docker_entry.sh
+ENTRYPOINT ["/bin/bash", "/docker_entry.sh"]
 WORKDIR /workspace
