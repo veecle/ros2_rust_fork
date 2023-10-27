@@ -19,4 +19,9 @@ for dep in dependency_packages:
 }@
 serde = @(serde_features)
 # Enable to prevent linking against the ROS middleware
-no_middleware = []
+@{
+no_middleware_features = []
+for dep in dependency_packages:
+	no_middleware_features.append("{}/no_middleware".format(dep))
+}@
+no_middleware = @(no_middleware_features)
