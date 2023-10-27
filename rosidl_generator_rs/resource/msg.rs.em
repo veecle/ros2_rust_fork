@@ -1,4 +1,4 @@
-#[cfg(not(feature = "no_middleware"))]
+#[cfg(feature = "with_middleware")]
 pub mod rmw {
 @{
 TEMPLATE(

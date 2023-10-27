@@ -4,7 +4,7 @@ version = "@(package_version)"
 edition = "2021"
 
 [dependencies]
-rosidl_runtime_rs = "0.3"
+rosidl_runtime_rs = { version = "0.3", optional = true }
 serde = { version = "1", optional = true, features = ["derive"] }
 serde-big-array = { version = "0.5.1", optional = true }
 @[for dep in dependency_packages]@
@@ -12,6 +12,7 @@ serde-big-array = { version = "0.5.1", optional = true }
 @[end for]@
 
 [features]
+default = ["with_middleware"]
 @{
 serde_features = ["dep:serde", "dep:serde-big-array", "rosidl_runtime_rs/serde"]
 for dep in dependency_packages:
@@ -20,8 +21,8 @@ for dep in dependency_packages:
 serde = @(serde_features)
 # Enable to prevent linking against the ROS middleware
 @{
-no_middleware_features = []
+with_middleware_features = ["dep:rosidl_runtime_rs"]
 for dep in dependency_packages:
-	no_middleware_features.append("{}/no_middleware".format(dep))
+	with_middleware_features.append("{}/with_middleware".format(dep))
 }@
-no_middleware = @(no_middleware_features)
+with_middleware = @(with_middleware_features)
