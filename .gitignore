@@ -226,3 +226,6 @@ Cargo.lock
 **/.cargo/config.toml
 
 # End of https://www.toptal.com/developers/gitignore/api/cmake,rust,python,cpp,c
+
+# When building this overlay on your local machine
+ros2
