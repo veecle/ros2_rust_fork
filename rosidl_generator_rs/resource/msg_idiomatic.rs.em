@@ -237,4 +237,7 @@ impl rosidl_runtime_rs::Message for @(type_name) {
   }
 }
 
+impl rosidl_shared::MiddlewareMessage for @(type_name) where Self: Sized {
+  const TYPE_NAME: &'static str = "@(package_name)/@(subfolder)/@(type_name)";
+}
 @[end for]

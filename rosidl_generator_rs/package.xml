@@ -20,6 +20,7 @@
   <buildtool_export_depend>rosidl_runtime_rs</buildtool_export_depend>
   <buildtool_export_depend>rosidl_typesupport_c</buildtool_export_depend>
   <buildtool_export_depend>rosidl_typesupport_interface</buildtool_export_depend>
+  <buildtool_export_depend>rosidl_shared</buildtool_export_depend>
 
   <!-- This is needed for the rosidl_message_type_support_t struct and visibility macros -->
   <build_export_depend>rosidl_generator_c</build_export_depend>

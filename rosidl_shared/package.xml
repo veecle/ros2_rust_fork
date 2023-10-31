@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<?xml-model
+   href="http://download.ros.org/schema/package_format3.xsd"
+   schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>rosidl_shared</name>
+  <version>0.1.0</version>
+  <description>Package containing code shared between generated rust code that does not depend on ROS</description>
+  <maintainer email="info@veecle.io">Veecle developers</maintainer>
+  <license>Apache License 2.0</license>
+  <author email="finn.hermeling@veecle.io">Finn Hermeling</author>
+
+  <export>
+    <build_type>ament_cargo</build_type>
+  </export>
+</package>

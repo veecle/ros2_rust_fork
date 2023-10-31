@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 rosidl_runtime_rs = { version = "0.3", optional = true }
+rosidl_shared = { version = "*" }
 serde = { version = "1", optional = true, features = ["derive"] }
 serde-big-array = { version = "0.5.1", optional = true }
 @[for dep in dependency_packages]@
