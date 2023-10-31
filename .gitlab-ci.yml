@@ -1,12 +1,22 @@
 build:
-  image: docker:20.10.16
   stage: build
+  variables:
+    # Docker Daemon
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+    # is the preferred storage driver for all currently supported Linux distributions, and requires no extra configuration.
+    DOCKER_DRIVER: overlay2
+  before_script:
+    # registry login via CI-Token
+    - docker login -u $CI_REGISTRY_USER -p $CI_JOB_TOKEN $CI_REGISTRY
   only:
     refs:
-      - main
+      - main  
+  # docker:latest image from 16.11.2022
+  image: docker:latest@sha256:7d38fcb8a07d072779a28086445df6620e03dea806527d62fb08d9df79c9d2ce
   services:
-    - docker:20.10.16-dind
+    # docker:dind image from 16.11.2022
+    - docker:dind@sha256:ceacfc33f66b26b43e889d7a80c2faab212faf08e7433d59ab4a193d1da82370
   script:
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - docker build -t $CI_REGISTRY/dev-core/jupiter/ros2_rust_fork:latest .
     - docker push $CI_REGISTRY/dev-core/jupiter/ros2_rust_fork:latest
