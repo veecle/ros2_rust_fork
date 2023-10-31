@@ -13,7 +13,7 @@ Build the Docker image with
 ```shell
 # Make sure to run this in the workspace directory
 # ROS_DISTRO can be humble|iron|rolling
-docker build --build-arg "ROS_DISTRO=humble" -t ros2_rust_dev .
+docker build --network host --build-arg "ROS_DISTRO=humble" -t ros2_rust_dev .
 ```
 
 and then run it with
