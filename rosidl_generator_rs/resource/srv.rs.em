@@ -23,6 +23,7 @@ TEMPLATE(
 type_name = srv_spec.namespaced_type.name
 }@
 
+#[cfg(feature = "with_middleware")]
 #[link(name = "@(package_name)__rosidl_typesupport_c")]
 extern "C" {
     fn rosidl_typesupport_c__get_service_type_support_handle__@(package_name)__@(subfolder)__@(type_name)() -> *const std::os::raw::c_void;
@@ -31,6 +32,7 @@ extern "C" {
 // Corresponds to @(package_name)__@(subfolder)__@(type_name)
 pub struct @(type_name);
 
+#[cfg(feature = "with_middleware")]
 impl rosidl_runtime_rs::Service for @(type_name) {
   type Request = crate::@(subfolder)::@(type_name)_Request;
   type Response = crate::@(subfolder)::@(type_name)_Response;
@@ -43,6 +45,7 @@ impl rosidl_runtime_rs::Service for @(type_name) {
 
 @[end for]
 
+#[cfg(feature = "with_middleware")]
 pub mod rmw {
 @{
 TEMPLATE(
