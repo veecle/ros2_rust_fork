@@ -19,7 +19,7 @@ version = "0.3"
 
 [dependencies.rclrs_example_msgs]
 version = "0.3"
-features = ["serde"]
+features = ["serde", "with_middleware"]
 
 [dependencies.serde_json]
 version = "1.0"

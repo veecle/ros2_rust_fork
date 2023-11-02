@@ -13,7 +13,7 @@ serde-big-array = { version = "0.5.1", optional = true }
 @[end for]@
 
 [features]
-default = ["with_middleware"]
+default = []
 @{
 serde_features = ["dep:serde", "dep:serde-big-array", "rosidl_runtime_rs?/serde"]
 for dep in dependency_packages:

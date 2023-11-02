@@ -32,4 +32,9 @@ tempfile = "3.3.0"
 bindgen = "0.66.1"
 
 [features]
+# Never disable 'with_middleware' that feature
+default = ["with_middleware"]
 dyn_msg = ["ament_rs", "libloading"]
+# We require this feature because some builtin interfaces are automatically vendored
+# when this crate is built with 'colcon build'
+with_middleware = []

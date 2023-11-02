@@ -28,3 +28,4 @@ version = "0.3"
 
 [dependencies.example_interfaces]
 version = "*"
+features = ["with_middleware"]

@@ -36,6 +36,7 @@ version = "0.3"
 
 [dependencies.std_msgs]
 version = "*"
+features = ["with_middleware"]
 
 [package.metadata.ros]
 install_to_share = ["launch"]
