@@ -348,6 +348,12 @@ impl<T: SequenceAlloc, const N: usize> TryFrom<Vec<T>> for BoundedSequence<T, N>
     }
 }
 
+impl<T: SequenceAlloc, const N: usize> From<heapless::Vec<T, N>> for BoundedSequence<T, N> {
+    fn from(v: heapless::Vec<T, N>) -> Self {
+        BoundedSequence::from_iter(v.into_iter())
+    }
+}
+
 impl<T: SequenceAlloc, const N: usize> FromIterator<T> for BoundedSequence<T, N> {
     fn from_iter<I>(iter: I) -> Self
     where

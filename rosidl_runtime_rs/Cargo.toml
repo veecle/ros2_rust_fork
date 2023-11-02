@@ -16,6 +16,8 @@ path = "src/lib.rs"
 # Optional dependency for making it possible to convert messages to and from
 # formats such as JSON, YAML, Pickle, etc.
 serde = { version = "1", optional = true }
+# Uses Vec for idiomatic BoundedSequence
+heapless = "0.7.16"
 
 [dev-dependencies]
 # Needed for writing property tests
