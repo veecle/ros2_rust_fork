@@ -288,6 +288,8 @@ def make_get_idiomatic_rs_type(package_name):
     def get_idiomatic_rs_type(type_):
         if isinstance(type_, UnboundedString) or isinstance(type_, UnboundedWString):
             return 'std::string::String'
+        elif isinstance(type_, BoundedString) or isinstance(type_, BoundedWString):
+            return 'heapless::String<{}>'.format(type_.maximum_size)
         elif isinstance(type_, UnboundedSequence):
             return 'Vec<{}>'.format(get_idiomatic_rs_type(type_.value_type))
         elif isinstance(type_, BoundedSequence):

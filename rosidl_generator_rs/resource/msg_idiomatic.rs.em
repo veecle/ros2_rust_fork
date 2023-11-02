@@ -4,6 +4,7 @@ from rosidl_parser.definition import Array
 from rosidl_parser.definition import BasicType
 from rosidl_parser.definition import BoundedSequence
 from rosidl_parser.definition import BoundedString
+from rosidl_parser.definition import BoundedWString
 from rosidl_parser.definition import NamedType
 from rosidl_parser.definition import NamespacedType
 from rosidl_parser.definition import UnboundedSequence
@@ -77,6 +78,8 @@ impl rosidl_runtime_rs::Message for @(type_name) {
 @[        if isinstance(member.type.value_type, UnboundedString) or isinstance(member.type.value_type, UnboundedWString)]@
         @(get_rs_name(member.name)): msg.@(get_rs_name(member.name))
           .map(|elem| elem.as_str().into()),
+@[        elif isinstance(member.type.value_type, BoundedString) or isinstance(member.type.value_type, BoundedWString)]@
+        @(get_rs_name(member.name)): unimplemented!(),
 @[        elif isinstance(member.type.value_type, NamedType) or isinstance(member.type.value_type, NamespacedType)]@
         @(get_rs_name(member.name)): msg.@(get_rs_name(member.name))
           .map(|elem| @(get_idiomatic_rs_type(member.type.value_type))::into_rmw_message(std::borrow::Cow::Owned(elem)).into_owned()),
@@ -99,6 +102,8 @@ impl rosidl_runtime_rs::Message for @(type_name) {
           .into_iter()
           .map(|elem| elem.as_str().into())
           .collect(),
+@[        elif isinstance(member.type.value_type, BoundedString) or isinstance(member.type.value_type, BoundedWString)]@
+        @(get_rs_name(member.name)): unimplemented!(),
 @[        elif isinstance(member.type.value_type, NamedType) or isinstance(member.type.value_type, NamespacedType)]@
         @(get_rs_name(member.name)): msg.@(get_rs_name(member.name))
           .into_iter()
@@ -120,6 +125,8 @@ impl rosidl_runtime_rs::Message for @(type_name) {
         @(get_rs_name(member.name)): rosidl_runtime_rs::BoundedSequence::from_iter(msg.@(get_rs_name(member.name))
           .into_iter()
           .map(|elem| elem.as_str().into())),
+@[        elif isinstance(member.type.value_type, BoundedString) or isinstance(member.type.value_type, BoundedWString)]@
+        @(get_rs_name(member.name)): unimplemented!(),
 @[        elif isinstance(member.type.value_type, NamedType) or isinstance(member.type.value_type, NamespacedType)]@
         @(get_rs_name(member.name)): rosidl_runtime_rs::BoundedSequence::from_iter(
             msg.@(get_rs_name(member.name))
@@ -130,7 +137,12 @@ impl rosidl_runtime_rs::Message for @(type_name) {
 @[        end if]@
 @#
 @#
-@#    == Bounded and basic types ==
+@#    == BoundedString + BoundedWString ==
+@[    elif isinstance(member.type, BoundedString) or isinstance(member.type, BoundedWString)]@
+        @(get_rs_name(member.name)): unimplemented!(),
+@#
+@#
+@#    == Basic types ==
 @[    else]@
         @(get_rs_name(member.name)): msg.@(get_rs_name(member.name)),
 @[    end if]@
@@ -149,6 +161,8 @@ impl rosidl_runtime_rs::Message for @(type_name) {
           .collect::<Vec<_>>()
           .try_into()
           .unwrap(),
+@[        elif isinstance(member.type.value_type, BoundedString) or isinstance(member.type.value_type, BoundedWString)]@
+        @(get_rs_name(member.name)): unimplemented!(),
 @[        elif isinstance(member.type.value_type, NamedType) or isinstance(member.type.value_type, NamespacedType)]@
         @(get_rs_name(member.name)): msg.@(get_rs_name(member.name))
           .iter()
@@ -175,6 +189,8 @@ impl rosidl_runtime_rs::Message for @(type_name) {
           .iter()
           .map(|elem| elem.as_str().into())
           .collect(),
+@[        elif isinstance(member.type.value_type, BoundedString) or isinstance(member.type.value_type, BoundedWString)]@
+        @(get_rs_name(member.name)): unimplemented!(),
 @[        elif isinstance(member.type.value_type, NamedType) or isinstance(member.type.value_type, NamespacedType)]@
         @(get_rs_name(member.name)): msg.@(get_rs_name(member.name))
           .iter()
@@ -196,6 +212,8 @@ impl rosidl_runtime_rs::Message for @(type_name) {
         @(get_rs_name(member.name)): rosidl_runtime_rs::BoundedSequence::from_iter(msg.@(get_rs_name(member.name))
           .iter()
           .map(|elem| elem.as_str().into())),
+@[        elif isinstance(member.type.value_type, BoundedString) or isinstance(member.type.value_type, BoundedWString)]@
+        @(get_rs_name(member.name)): unimplemented!(),
 @[        elif isinstance(member.type.value_type, NamedType) or isinstance(member.type.value_type, NamespacedType)]@
         @(get_rs_name(member.name)): rosidl_runtime_rs::BoundedSequence::from_iter(msg.@(get_rs_name(member.name))
           .iter()
@@ -205,11 +223,16 @@ impl rosidl_runtime_rs::Message for @(type_name) {
 @[        end if]@
 @#
 @#
+@#    == BoundedString + BoundedWString ==
+@[    elif isinstance(member.type, BoundedString) or isinstance(member.type, BoundedWString)]@
+        @(get_rs_name(member.name)): unimplemented!(),
+@#
+@#
 @#    == BasicType ==
 @[    elif isinstance(member.type, BasicType)]@
       @(get_rs_name(member.name)): msg.@(get_rs_name(member.name)),
 @#
-@#
+@#    FIXME: Does this case ever apply?
 @#    == Bounded types ==
 @[    else]@
         @(get_rs_name(member.name)): msg.@(get_rs_name(member.name)).clone(),
@@ -229,6 +252,8 @@ impl rosidl_runtime_rs::Message for @(type_name) {
 @[        if isinstance(member.type.value_type, UnboundedString) or isinstance(member.type.value_type, UnboundedWString)]@
       @(get_rs_name(member.name)): msg.@(get_rs_name(member.name))
         .map(|elem| elem.to_string()),
+@[        elif isinstance(member.type.value_type, BoundedString) or isinstance(member.type.value_type, BoundedWString)]@
+      @(get_rs_name(member.name)): unimplemented!(),
 @[        elif isinstance(member.type.value_type, NamedType) or isinstance(member.type.value_type, NamespacedType)]@
       @(get_rs_name(member.name)): msg.@(get_rs_name(member.name))
         .map(@(get_idiomatic_rs_type(member.type.value_type))::from_rmw_message),
@@ -243,6 +268,8 @@ impl rosidl_runtime_rs::Message for @(type_name) {
           .into_iter()
 @[        if isinstance(member.type.value_type, UnboundedString) or isinstance(member.type.value_type, UnboundedWString)]@
           .map(|elem| elem.to_string())
+@[        elif isinstance(member.type.value_type, BoundedString) or isinstance(member.type.value_type, BoundedWString)]@
+          .map(|elem| unimplemented!())
 @[        elif isinstance(member.type.value_type, NamedType) or isinstance(member.type.value_type, NamespacedType)]@
           .map(@(get_idiomatic_rs_type(member.type.value_type))::from_rmw_message)
 @[        end if]@
@@ -252,6 +279,11 @@ impl rosidl_runtime_rs::Message for @(type_name) {
 @#    == UnboundedString + UnboundedWString ==
 @[    elif isinstance(member.type, UnboundedString) or isinstance(member.type, UnboundedWString)]@
       @(get_rs_name(member.name)): msg.@(get_rs_name(member.name)).to_string(),
+@#
+@#
+@#    == BoundedString + BoundedWString ==
+@[    elif isinstance(member.type, BoundedString) or isinstance(member.type, BoundedWString)]@
+      @(get_rs_name(member.name)): unimplemented!(),
 @#
 @#
 @#    == NamedType + NamespacedType ==
@@ -265,13 +297,15 @@ impl rosidl_runtime_rs::Message for @(type_name) {
           .into_iter()
 @[        if isinstance(member.type.value_type, UnboundedString) or isinstance(member.type.value_type, UnboundedWString)]@
           .map(|elem| elem.to_string())
+@[        elif isinstance(member.type.value_type, BoundedString) or isinstance(member.type.value_type, BoundedWString)]@
+          .map(|elem| unimplemented!())
 @[        elif isinstance(member.type.value_type, NamedType) or isinstance(member.type.value_type, NamespacedType)]@
           .map(@(get_idiomatic_rs_type(member.type.value_type))::from_rmw_message)
 @[        end if]@
           ),
 @#
 @#
-@#    == Bounded and basic types ==
+@#    == Basic types ==
 @[    else]@
       @(get_rs_name(member.name)): msg.@(get_rs_name(member.name)),
 @[    end if]@
