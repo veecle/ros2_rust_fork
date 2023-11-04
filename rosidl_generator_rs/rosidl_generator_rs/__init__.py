@@ -37,6 +37,7 @@ from rosidl_parser.definition import BoundedWString
 from rosidl_parser.definition import IdlContent
 from rosidl_parser.definition import IdlLocator
 from rosidl_parser.definition import Message
+from rosidl_parser.definition import Annotatable
 from rosidl_parser.definition import NamespacedType
 from rosidl_parser.definition import Service
 from rosidl_parser.definition import UnboundedSequence
@@ -102,6 +103,7 @@ def generate_rs(generator_arguments_file, typesupport_impls):
 
     data = {
         'pre_field_serde': pre_field_serde,
+        'annotated_comments': annotated_comments,
         'get_rmw_rs_type': make_get_rmw_rs_type(args['package_name']),
         'get_rs_name': get_rs_name,
         'get_idiomatic_rs_type': make_get_idiomatic_rs_type(args['package_name']),
@@ -282,6 +284,13 @@ def pre_field_serde(type_):
     else:
         return ''
 
+def annotated_comments(field: Annotatable):
+    comments = field.get_comment_lines()
+    if comments is None:
+        return []
+    def escape(input: str) -> str:
+        return input.translate(str.maketrans({"\"":  r"\\\""}))
+    return [escape(line) for line in comments]
 
 def make_get_idiomatic_rs_type(package_name):
     get_rmw_rs_type = make_get_rmw_rs_type(package_name)

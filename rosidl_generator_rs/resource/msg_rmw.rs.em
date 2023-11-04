@@ -32,12 +32,17 @@ extern "C" {
 
 @# Drop is not needed, since the default drop glue does the same as fini here:
 @# it just calls the drop/fini functions of all fields
-// Corresponds to @(package_name)__@(subfolder)__@(type_name)
+@[for line in annotated_comments(msg_spec.structure)]@
+#[doc = "@(line)"]
+@[end for]@
 #[repr(C)]
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub struct @(type_name) {
 @[for member in msg_spec.structure.members]@
+    @[for line in annotated_comments(member)]@
+    #[doc = "@(line)"]
+    @[end for]@
     @(pre_field_serde(member.type))pub @(get_rs_name(member.name)): @(get_rmw_rs_type(member.type)),
 @[end for]@
 }
@@ -45,16 +50,9 @@ pub struct @(type_name) {
 @[if msg_spec.constants]@
 impl @(type_name) {
 @[for constant in msg_spec.constants]@
-@{
-comments = getattr(constant, 'get_comment_lines', lambda: [])()
-}@
-@[  for line in comments]@
-@[    if line]@
-    /// @(line)
-@[    else]@
-    ///
-@[    end if]@
-@[  end for]@
+@[for line in annotated_comments(constant)]@
+    #[doc = "@(line)"]
+@[end for]@
 @[  if isinstance(constant.type, BasicType)]@
     pub const @(get_rs_name(constant.name)): @(get_rmw_rs_type(constant.type)) = @(constant_value_to_rs(constant.type, constant.value));
 @[  elif isinstance(constant.type, AbstractGenericString)]@
