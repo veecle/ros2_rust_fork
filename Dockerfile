@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y \
 # Install Rust and the cargo-ament-build plugin
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain 1.71.0 -y
 ENV PATH=/root/.cargo/bin:$PATH
+RUN rustup component add rustfmt
 RUN cargo install cargo-ament-build
 
 RUN pip install --upgrade pytest 
