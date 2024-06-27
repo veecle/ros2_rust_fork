@@ -28,6 +28,6 @@ RUN . /opt/ros/humble/setup.sh \
   && colcon build --packages-skip-regex 'rclrs_tests' 'rclrs_example_msgs' 'example.*' 'test.*' \
   && rm -r /r2r/build /r2r/log
 
-RUN mv /r2r/ros2_rust/docker_entry.sh / && chmod 700 /docker_entry.sh
+RUN mv /r2r/ros2_rust/docker_entry.sh /
 ENTRYPOINT ["/bin/bash", "/docker_entry.sh"]
 WORKDIR /workspace
